@@ -4,21 +4,32 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "@next-auth/supabase-adapter": "^0.2.1",
     "@supabase/supabase-js": "^2.58.0",
+    "axios": "^1.12.2",
+    "googleapis": "^160.0.0",
+    "ics": "^3.8.1",
     "next": "15.5.4",
+    "next-auth": "^4.24.11",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "resend": "^6.1.0"
   },
   "devDependencies": {
+    "@netlify/edge-functions-bootstrap": "^2.17.1",
+    "@netlify/plugin-nextjs": "^5.13.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "tailwindcss": "^4",
+    "autoprefixer": "^10.4.21",
+    "netlify-cli": "^23.8.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.13",
     "typescript": "^5"
   }
 }
