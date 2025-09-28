@@ -1,4 +1,4 @@
-import { createEvent } from 'ics';
+import { createEvent } from "ics";
 
 export function generateICS({
   startIso,
@@ -12,7 +12,7 @@ export function generateICS({
   summary: string;
   description: string;
   attendees: { name?: string; email: string }[];
-}) {
+}): string {
   const start = new Date(startIso);
   const end = new Date(endIso);
 
@@ -25,6 +25,5 @@ export function generateICS({
   });
 
   if (error) throw error;
-  return value;
+  return value || "";
 }
-

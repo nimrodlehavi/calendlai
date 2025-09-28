@@ -1,4 +1,8 @@
-// pages/api/bookings.ts
+// Ensure Node runtime (so Buffer works in Vercel)
+export const config = {
+  runtime: "nodejs",
+};
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "../../lib/supabase";
 import { google } from "googleapis";
@@ -107,6 +111,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    // Send reschedule email
+    const ics = generateICS({
+      startIso: start_time,
+      endIso: end_time,
+      summary: "CalendlAI Booking (Updated)",
+      description: "Rescheduled meeting",
+      attendees: [{ email: booking.invitee_email }],
+    });
+
+    await sendBookingEmail({
+      to: booking.invitee_email,
+      subject: "Your booking has been rescheduled",
+      text: `New time: ${new Date(start_time).toLocaleString()}.`,
+      icsContent: ics,
+    });
+
     return res.status(200).json({ booking });
   }
 
@@ -117,7 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Fetch booking to see if it has Google event
     const { data: booking } = await supabase
       .from("bookings")
-      .select("google_event_id")
+      .select("invitee_email, google_event_id")
       .eq("id", id)
       .single();
 
@@ -139,6 +159,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch (err) {
         console.error("Google Calendar delete failed:", err);
       }
+    }
+
+    // Send cancellation email
+    if (booking?.invitee_email) {
+      await sendBookingEmail({
+        to: booking.invitee_email,
+        subject: "Your booking has been cancelled",
+        text: "This booking has been cancelled.",
+        icsContent: "", // no ICS needed
+      });
     }
 
     return res.status(200).json({ success: true });

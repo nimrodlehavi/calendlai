@@ -15,7 +15,7 @@ export async function sendBookingEmail({
 }) {
   try {
     const res = await resend.emails.send({
-      from: "CalendlAI <no-reply@calendlai.cronussystems.com>", // ✅ verified domain
+      from: "CalendlAI <no-reply@calendlai.cronussystems.com>",
       to,
       subject,
       html: `<p>${text}</p>`,
@@ -23,7 +23,7 @@ export async function sendBookingEmail({
         {
           filename: "invite.ics",
           content: Buffer.from(icsContent).toString("base64"),
-          type: "text/calendar",
+          contentType: "text/calendar", // ✅ fixed
         },
       ],
     });
