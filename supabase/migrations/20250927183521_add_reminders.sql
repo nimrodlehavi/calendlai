@@ -1,3 +1,4 @@
+create extension if not exists pg_cron with schema cron;
 -- Create reminders table to log sent emails (avoid duplicates)
 create table if not exists reminders_sent (
   id uuid primary key default gen_random_uuid(),
