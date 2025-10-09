@@ -50,9 +50,7 @@ export default function LoginPage() {
         <div className="absolute inset-y-12 inset-x-16 -z-20 rounded-3xl bg-gradient-ai opacity-60" />
         <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-900/70 p-10 shadow-floating backdrop-blur-xl">
           <div className="mb-8 space-y-3 text-slate-100">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-[11px] uppercase tracking-[0.3em]">
-              Secure access
-            </span>
+            <span className="text-xs font-medium text-slate-300">Secure access</span>
             <h1 className="text-3xl font-semibold">Welcome back to CalendlAI</h1>
             <p className="text-sm text-slate-300">
               Sign in to orchestrate availability, automate follow-ups, and let the AI co-pilot keep calendars in harmony.
