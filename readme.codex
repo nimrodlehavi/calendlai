@@ -1,0 +1,43 @@
+CalendlAI – Codex Session Notes
+================================
+
+Context Snapshot (2025-02-26)
+----------------------------
+- Project: CalendlAI – Calendly-style scheduler built with Next.js (Pages Router) + Supabase.
+- Auth: Supabase Auth (magic links + Google/GitHub/Twitter OAuth). We now use a shared session hook to hydrate clients and enforce redirects.
+- Key env vars live in `.env.local` (real values already present on this machine). `lib/supabaseConfig.ts` validates they are non-placeholder and correctly shaped.
+
+Local Dev & Testing
+-------------------
+- Start dev server: `npm run dev` (Next.js w/ Turbopack).
+- Type check: `npx tsc --noEmit` (clean as of last session).
+- No automated tests yet; consider adding Vitest or Playwright when flows stabilize.
+
+Important Modules
+-----------------
+- `lib/supabaseConfig.ts`: centralizes Supabase URL/keys and guards against missing placeholders.
+- `lib/supabaseBrowserClient.ts`, `lib/supabaseClient.ts`, `lib/supabaseServiceClient.ts`: all import from the config module; browser client now persists sessions with key `calendlai-auth-token`.
+- `hooks/useSupabaseSession.ts`: shared client-side hook for session state (loading/error/authenticated).
+- `pages/_app.tsx`: listens to session hook, ensures profile row via `/api/auth/ensure-user`, persists Google tokens, and redirects signed-in users to `/event-types`.
+- `components/AuthGuard.tsx`: uses the session hook, shows loading/redirect states, and offers inline magic-link form plus OAuth buttons when redirect is not provided.
+- `pages/event-types.tsx` & `pages/bookings.tsx`: gated behind `AuthGuard`, use the session hook, and include loading/error handling with graceful cancellation on unmount.
+
+Outstanding / Next Tasks
+------------------------
+1. Build invitee booking flow for `/{username}/{slug}` (slot picker, confirmation, ICS emails, availability checks).
+2. Provide quick share / copy link actions in Event Types with slug uniqueness + availability preflight.
+3. Add automated coverage (e.g., Vitest/MSW or Playwright) for auth and booking flows.
+4. (Optional soon) Reconcile existing pages under `pages/book/`, `pages/manage/`, `pages/availability.tsx`, `pages/settings.tsx` with new session hook + error states.
+
+Operational Notes
+-----------------
+- When touching privileged endpoints, ensure `SUPABASE_SERVICE_ROLE_KEY` is available; warnings appear in dev otherwise.
+- Magic link emails dispatched via `/api/auth/send-magic-link` use Resend; env var `RESEND_API_KEY` already set.
+- Always update this `readme.codex` when major architectural decisions or workflow expectations change so future sessions start with accurate context.
+
+Last Session Summary
+--------------------
+- Date: 2025-02-26
+- Focus: Hardened Supabase client configuration, introduced shared session handling, refreshed auth UX, and added loading/error states to protected pages.
+- Dev server restarted (`npm run dev`) and type check passed (`npx tsc --noEmit`).
+

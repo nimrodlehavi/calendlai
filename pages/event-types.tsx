@@ -1,8 +1,10 @@
 // pages/event-types.tsx
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import AuthGuard from "../components/AuthGuard";
 import { supabaseBrowserClient } from "../lib/supabaseBrowserClient";
-import type { Session } from "@supabase/supabase-js";
+import Layout from "../components/Layout";
+import { useSupabaseSession } from "../hooks/useSupabaseSession";
 
 type EventType = {
   id: string;
@@ -24,47 +26,83 @@ export default function EventTypesPage() {
   );
 }
 
+const defaultForm = { name: "", duration_minutes: 30, buffer_before: 0, buffer_after: 0, min_notice_minutes: 60 };
+
+function slugify(value: string) {
+  const base = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return base || `event-${Date.now()}`;
+}
+
 function Content() {
-  const [session, setSession] = useState<Session | null>(null);
+  const { session, status, error: sessionError } = useSupabaseSession();
   const [items, setItems] = useState<EventType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", duration_minutes: 30, buffer_before: 0, buffer_after: 0, min_notice_minutes: 60 });
+  const [form, setForm] = useState({ ...defaultForm });
   const [err, setErr] = useState<string | null>(null);
   const [ownerUsername, setOwnerUsername] = useState<string>("");
 
   useEffect(() => {
-    supabaseBrowserClient.auth.getSession().then(({ data }) => {
-      setSession(data.session ?? null);
-    });
-  }, []);
+    if (status !== "authenticated" || !session?.user) return;
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!session) return;
     const load = async () => {
       setLoading(true);
       setErr(null);
-      const profileRes = await supabaseBrowserClient
-        .from('users')
-        .select('username')
-        .eq('id', session.user.id)
-        .maybeSingle();
-      if (profileRes.data?.username) setOwnerUsername(profileRes.data.username);
-      const { data, error } = await supabaseBrowserClient
-        .from("event_types")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false });
-      if (error) setErr(error.message);
-      setItems((data as EventType[]) ?? []);
-      setLoading(false);
+      try {
+        const profileRes = await supabaseBrowserClient
+          .from('users')
+          .select('username')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        if (!cancelled && profileRes.data?.username) {
+          setOwnerUsername(profileRes.data.username);
+        }
+        if (profileRes.error) {
+          console.warn('Profile lookup failed', profileRes.error);
+        }
+
+        const { data, error } = await supabaseBrowserClient
+          .from("event_types")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false });
+
+        if (cancelled) return;
+
+        if (error) {
+          setErr(error.message);
+          setItems([]);
+          return;
+        }
+
+        setItems((data as EventType[]) ?? []);
+      } catch (loadError: any) {
+        if (!cancelled) {
+          setErr(loadError?.message || 'Failed to load event types');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     };
+
     load();
-  }, [session]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, status]);
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session) return;
+    if (!session?.user) return;
     setErr(null);
+    const slug = slugify(form.name);
     const payload = {
       user_id: session.user.id,
       name: form.name.trim(),
@@ -72,6 +110,8 @@ function Content() {
       buffer_before: Number(form.buffer_before) || 0,
       buffer_after: Number(form.buffer_after) || 0,
       min_notice_minutes: Number(form.min_notice_minutes) || 60,
+      slug,
+      is_public: true,
     };
     const { data, error } = await supabaseBrowserClient
       .from("event_types")
@@ -80,21 +120,36 @@ function Content() {
       .single();
     if (error) return setErr(error.message);
     setItems([data as EventType, ...items]);
-    setForm({ name: "", duration_minutes: 30, buffer_before: 0, buffer_after: 0, min_notice_minutes: 60 });
+    setForm({ ...defaultForm });
   };
 
   return (
-    <main className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Event Types</h1>
+    <Layout>
+      <div className="space-y-6">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-50">Event types</h1>
+            <p className="text-sm text-slate-300">Craft curated booking flows for every moment.</p>
+          </div>
+          <span className="rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs uppercase tracking-[0.3em] text-slate-300">
+            {items.length} total
+          </span>
+        </header>
 
-      <section className="rounded-xl border">
-        <div className="p-4 border-b font-medium">Your event types</div>
+      <section className="rounded-2xl border border-white/10 bg-white/5">
+        <div className="flex items-center justify-between border-b border-white/5 px-5 py-3">
+          <p className="text-sm font-semibold text-slate-200">Your event types</p>
+          <span className="text-xs text-slate-400">Instant share links</span>
+        </div>
         {loading ? (
-          <div className="p-4 text-sm text-gray-600">Loading…</div>
+          <div className="space-y-4 px-5 py-6 text-sm text-slate-400">
+            <div className="h-2 w-full animate-pulse rounded-full bg-white/10" />
+            <div className="h-2 w-3/4 animate-pulse rounded-full bg-white/10" />
+          </div>
         ) : items.length === 0 ? (
-          <div className="p-4 text-sm text-gray-600">No event types yet.</div>
+          <div className="px-5 py-8 text-sm text-slate-400">No event types yet.</div>
         ) : (
-          <ul className="divide-y">
+          <ul className="divide-y divide-white/5 px-5">
             {items.map((it) => (
               <EventTypeRow
                 key={it.id}
@@ -108,68 +163,77 @@ function Content() {
         )}
       </section>
 
-      <section className="mt-8 rounded-xl border p-4">
-        <h2 className="mb-3 text-lg font-semibold">Create new event type</h2>
-        <form onSubmit={create} className="grid grid-cols-1 gap-3 md:grid-cols-5 md:items-end">
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h2 className="mb-4 text-lg font-semibold text-slate-100">Create new event type</h2>
+        <form onSubmit={create} className="grid grid-cols-1 gap-4 md:grid-cols-5 md:items-end">
           <div>
-            <label className="text-sm font-medium">Name</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Name</label>
             <input
-              className="w-full rounded-md border px-3 py-2"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-accent-teal/80 focus:bg-white/10"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               required
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Duration (min)</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Duration (min)</label>
             <input
               type="number"
               min={5}
-              className="w-full rounded-md border px-3 py-2"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-accent-teal/80 focus:bg-white/10"
               value={form.duration_minutes}
               onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })}
               required
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Buffer before (min)</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Buffer before</label>
             <input
               type="number"
               min={0}
-              className="w-full rounded-md border px-3 py-2"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-accent-teal/80 focus:bg-white/10"
               value={form.buffer_before}
               onChange={(e) => setForm({ ...form, buffer_before: Number(e.target.value) })}
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Buffer after (min)</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Buffer after</label>
             <input
               type="number"
               min={0}
-              className="w-full rounded-md border px-3 py-2"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-accent-teal/80 focus:bg-white/10"
               value={form.buffer_after}
               onChange={(e) => setForm({ ...form, buffer_after: Number(e.target.value) })}
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Min notice (min)</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Min notice</label>
             <input
               type="number"
               min={0}
-              className="w-full rounded-md border px-3 py-2"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-accent-teal/80 focus:bg-white/10"
               value={form.min_notice_minutes}
               onChange={(e) => setForm({ ...form, min_notice_minutes: Number(e.target.value) })}
             />
           </div>
-          <button className="rounded-md bg-black px-4 py-2 text-white">Create</button>
+          <button className="rounded-full bg-accent-teal px-5 py-3 text-xs font-semibold text-slate-900 shadow-[0_15px_30px_rgba(54,214,214,0.35)] transition hover:bg-accent-teal/90">
+            Create
+          </button>
         </form>
-        {err && <div className="mt-2 text-sm text-red-600">{err}</div>}
+        {err && <div className="mt-3 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{err}</div>}
+        {sessionError && (
+          <div className="mt-3 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+            {sessionError}
+          </div>
+        )}
       </section>
-    </main>
+      </div>
+    </Layout>
   );
 }
 
 function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any; ownerUsername: string; onDeleted: (id: string)=>void; onUpdated: (updated: any)=>void }){
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [local, setLocal] = useState({
@@ -353,7 +417,14 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || 'Failed to send invite');
+      if (!res.ok) {
+        if (json.error === 'NO_AVAILABILITY') {
+          setShareStatus('Set your availability before sharing this link. Redirecting…');
+          setTimeout(() => router.push('/availability'), 500);
+          return;
+        }
+        throw new Error(json.error || 'Failed to send invite');
+      }
       setShareInviteUrl(json.invite_url || null);
       setShareStatus('Invite sent!');
       setShareEmail('');
@@ -378,15 +449,15 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
   }
 
   return (
-    <li className="p-4 border-b">
-      <div className="flex justify-between items-center">
+    <li className="rounded-2xl border border-white/10 bg-white/5 p-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <div className="font-medium">{local.name}</div>
-          <div className="text-sm text-gray-600">{local.duration_minutes} min • buffer {local.buffer_before}/{local.buffer_after} min • notice {local.min_notice_minutes} min</div>
+          <div className="text-sm font-semibold text-slate-100">{local.name}</div>
+          <div className="text-xs text-slate-400">{local.duration_minutes} min • buffer {local.buffer_before}/{local.buffer_after} min • notice {local.min_notice_minutes} min</div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
-            className={`px-3 py-1 rounded border ${shareOpen ? 'border-blue-500 bg-blue-50 text-blue-700' : ''}`}
+            className={`${shareOpen ? 'btn-primary' : 'btn-secondary'} px-4 py-2 text-xs`}
             onClick={() => {
               const next = !shareOpen;
               setShareOpen(next);
@@ -405,26 +476,26 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
               }
               if (next) setShareOpen(false);
             }}
-            className={`px-3 py-1 rounded border ${expanded ? 'border-blue-500 bg-blue-50 text-blue-700' : ''}`}
+            className={`${expanded ? 'btn-primary' : 'btn-secondary'} px-4 py-2 text-xs`}
           >
             {expanded ? 'Close' : 'Edit'}
           </button>
-          <button onClick={doDelete} className="px-3 py-1 rounded border border-red-600 text-red-700">Delete</button>
+          <button onClick={doDelete} className="btn-danger px-4 py-2 text-xs">Delete</button>
         </div>
       </div>
       {shareOpen && (
-        <div className="mt-3 grid gap-3 rounded-lg border border-blue-200 bg-blue-50/60 p-4">
-          <div className="text-sm font-medium text-blue-900">Share {local.name}</div>
+        <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="text-sm font-medium text-slate-100">Share {local.name}</div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
-              className="w-full rounded border px-3 py-2 text-xs"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
               value={shareUrl}
               readOnly
               onFocus={(e) => e.currentTarget.select()}
             />
             <button
               type="button"
-              className="rounded border border-blue-400 px-3 py-2 text-xs text-blue-700"
+              className="btn-secondary px-4 py-2 text-xs"
               onClick={copyShareLink}
             >
               Copy link
@@ -432,30 +503,30 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
           </div>
           <form onSubmit={sendShareInvite} className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
             <div>
-              <label className="text-xs text-gray-600">Email the link</label>
+              <label className="text-xs text-slate-400">Email the link</label>
               <input
                 type="email"
                 value={shareEmail}
                 onChange={(e) => setShareEmail(e.target.value)}
                 placeholder="invitee@example.com"
-                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
                 required
               />
             </div>
             <button
               type="submit"
-              className="mt-3 rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white sm:mt-5"
+              className="btn-primary mt-3 px-4 py-2 text-xs font-semibold sm:mt-5"
               disabled={shareSending}
             >
               {shareSending ? 'Sending…' : 'Send invite'}
             </button>
           </form>
           {(shareStatus || shareInviteUrl) && (
-            <div className="text-xs text-blue-800 break-words">
+            <div className="break-words text-xs text-slate-200/80">
               {shareStatus}
               {shareInviteUrl && (
                 <div>
-                  <a href={shareInviteUrl} className="underline text-blue-700" target="_blank" rel="noreferrer">
+                  <a href={shareInviteUrl} className="text-midnight-200 underline" target="_blank" rel="noreferrer">
                     View invitation link
                   </a>
                 </div>
@@ -465,34 +536,34 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
         </div>
       )}
       {expanded && (
-        <div className="mt-3 grid gap-3">
-          <div className="grid md:grid-cols-5 gap-3 items-end">
+        <div className="mt-4 grid gap-4">
+          <div className="grid items-end gap-3 md:grid-cols-5">
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Name</label>
-              <input className="border rounded px-3 py-2 w-full" value={local.name} onChange={e=> setLocal({ ...local, name: e.target.value })} />
+              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Name</label>
+              <input className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.name} onChange={e=> setLocal({ ...local, name: e.target.value })} />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Duration (min)</label>
-              <input type="number" min={5} className="border rounded px-3 py-2 w-full" value={local.duration_minutes} onChange={e=> setLocal({ ...local, duration_minutes: Number(e.target.value) })} />
+              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Duration (min)</label>
+              <input type="number" min={5} className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.duration_minutes} onChange={e=> setLocal({ ...local, duration_minutes: Number(e.target.value) })} />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Buffer before (min)</label>
-              <input type="number" min={0} className="border rounded px-3 py-2 w-full" value={local.buffer_before} onChange={e=> setLocal({ ...local, buffer_before: Number(e.target.value) })} />
+              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Buffer before</label>
+              <input type="number" min={0} className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.buffer_before} onChange={e=> setLocal({ ...local, buffer_before: Number(e.target.value) })} />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Buffer after (min)</label>
-              <input type="number" min={0} className="border rounded px-3 py-2 w-full" value={local.buffer_after} onChange={e=> setLocal({ ...local, buffer_after: Number(e.target.value) })} />
+              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Buffer after</label>
+              <input type="number" min={0} className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.buffer_after} onChange={e=> setLocal({ ...local, buffer_after: Number(e.target.value) })} />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Min notice (min)</label>
-              <input type="number" min={0} className="border rounded px-3 py-2 w-full" value={local.min_notice_minutes} onChange={e=> setLocal({ ...local, min_notice_minutes: Number(e.target.value) })} />
+              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Min notice</label>
+              <input type="number" min={0} className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.min_notice_minutes} onChange={e=> setLocal({ ...local, min_notice_minutes: Number(e.target.value) })} />
             </div>
           </div>
-          <div className="grid md:grid-cols-5 gap-3 items-end">
+          <div className="grid items-end gap-3 md:grid-cols-5">
             <div className="md:col-span-3">
-              <label className="block text-xs text-gray-600 mb-1">Public link slug</label>
+              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Public link slug</label>
               <input
-                className="border rounded px-3 py-2 w-full"
+                className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
                 value={local.slug}
                 onChange={e=> setLocal({ ...local, slug: e.target.value })}
               />
@@ -505,54 +576,54 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
                 onChange={e=> setLocal({ ...local, is_public: e.target.checked })}
                 className="h-4 w-4"
               />
-              <label htmlFor={`public-${item.id}`} className="text-sm text-gray-700">Publicly visible</label>
+              <label htmlFor={`public-${item.id}`} className="text-sm text-slate-200">Publicly visible</label>
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Description (optional)</label>
+            <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Description (optional)</label>
             <textarea
-              className="border rounded px-3 py-2 w-full"
+              className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
               rows={3}
               value={local.description ?? ''}
               onChange={e=> setLocal({ ...local, description: e.target.value })}
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Scheduling mode</label>
+            <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Scheduling mode</label>
             <select
-              className="border rounded px-3 py-2 w-full"
+              className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
               value={local.scheduling_mode}
               onChange={e=> setLocal({ ...local, scheduling_mode: e.target.value as 'solo' | 'round_robin' })}
             >
               <option value="solo">Solo (only me)</option>
               <option value="round_robin">Round robin (rotate between hosts)</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-slate-400">
               Round robin automatically assigns the time to the available host with the lightest upcoming load.
             </p>
           </div>
           <div>
-            <button onClick={save} className="px-3 py-1 rounded bg-black text-white" disabled={saving}>{saving? 'Saving…':'Save'}</button>
+            <button onClick={save} className="btn-primary px-5 py-2 text-xs" disabled={saving}>{saving? 'Saving…':'Save'}</button>
           </div>
           <div className="border-t pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-gray-700">Team hosts</h4>
-              {hostsLoading && <span className="text-xs text-gray-500">Loading…</span>}
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-slate-100">Team hosts</h4>
+              {hostsLoading && <span className="text-xs text-slate-400">Loading…</span>}
             </div>
-            {hostError && <div className="text-xs text-red-600 mb-2">{hostError}</div>}
+            {hostError && <div className="mb-2 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{hostError}</div>}
             <ul className="space-y-2">
               {hosts.map((host) => (
-                <li key={host.user_id} className="flex items-center justify-between rounded border px-3 py-2 text-sm">
+                <li key={host.user_id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100">
                   <div>
-                    <div className="font-medium text-gray-800">{host.display_name || host.email || host.username || host.user_id.slice(0,8)}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="font-medium text-slate-100">{host.display_name || host.email || host.username || host.user_id.slice(0,8)}</div>
+                    <div className="text-xs text-slate-400">
                       {host.email || host.username || host.user_id}
                       {host.user_id === item.user_id && ' • Owner'}
                     </div>
                   </div>
                   <button
                     type="button"
-                    className="text-xs text-red-600"
+                    className="btn-danger px-4 py-2 text-xs"
                     disabled={host.user_id === item.user_id}
                     onClick={() => removeHost(host.user_id)}
                   >
@@ -561,33 +632,29 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
                 </li>
               ))}
               {hosts.length === 0 && !hostsLoading && (
-                <li className="text-xs text-gray-500">Only you are hosting this event.</li>
+                <li className="text-xs text-slate-400">Only you are hosting this event.</li>
               )}
             </ul>
-            <div className="mt-3 flex flex-col sm:flex-row gap-2">
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <input
                 type="email"
                 placeholder="host@company.com"
                 value={hostEmail}
                 onChange={e=> setHostEmail(e.target.value)}
-                className="border rounded px-3 py-2 flex-1"
+                className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
               />
-              <button
-                type="button"
-                className="px-3 py-2 rounded border"
-                onClick={addHost}
-              >
+              <button type="button" className="btn-secondary px-4 py-2 text-xs" onClick={addHost}>
                 Add host
               </button>
             </div>
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-slate-400">
               Hosts need a CalendlAI account. We&rsquo;ll invite them via email once added.
             </p>
           </div>
-          <div className="text-sm text-gray-700">Preview next 7 days</div>
+          <div className="text-sm text-slate-200">Preview next 7 days</div>
           <div className="grid grid-cols-7 gap-2 text-center text-xs">
             {preview.map(p => (
-              <div key={p.date} className={`rounded border p-2 ${p.slots>0? '':'opacity-50'}`}>
+              <div key={p.date} className={`rounded-2xl border border-white/10 p-2 ${p.slots>0? 'bg-white/6 text-slate-100':'opacity-60 text-slate-300'}`}>
                 <div>{new Date(p.date).toLocaleDateString(undefined, { month:'short', day:'numeric' })}</div>
                 <div className="font-semibold">{p.slots}</div>
                 <div>slots</div>

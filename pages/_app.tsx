@@ -3,13 +3,17 @@ import Head from "next/head";
 import "../styles/globals.css";
 import AuthButtons from "../components/AuthButtons";
 import UserGreeting from "../components/UserGreeting";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { supabaseBrowserClient } from "../lib/supabaseBrowserClient";
 import type { Session } from "@supabase/supabase-js";
+import Link from "next/link";
+import { useSupabaseSession } from "../hooks/useSupabaseSession";
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
+  const { session, status } = useSupabaseSession();
+  const processedTokensRef = useRef(new Set<string>());
 
   const maybeStoreGoogleCredentials = async (session: Session | null) => {
     if (!session) return;
@@ -42,61 +46,94 @@ export default function App({ Component, pageProps }: AppProps) {
       console.warn("Failed to persist Google credentials", error);
     }
   };
-  // Ensure a profile row exists for signed-in users
+  // Ensure a profile row exists for signed-in users and persist Google tokens.
   useEffect(() => {
-    let unsub: (() => void) | null = null;
-    const init = async () => {
-      const { data } = await supabaseBrowserClient.auth.getSession();
-      const sess = data.session;
-      if (sess?.access_token) {
-        fetch("/api/auth/ensure-user", {
+    if (status !== "authenticated" || !session?.access_token) return;
+
+    const accessToken = session.access_token;
+    if (processedTokensRef.current.has(accessToken)) return;
+    processedTokensRef.current.add(accessToken);
+
+    const run = async () => {
+      try {
+        await fetch("/api/auth/ensure-user", {
           method: "POST",
-          headers: { Authorization: `Bearer ${sess.access_token}` },
-        }).catch(() => {});
-        await maybeStoreGoogleCredentials(sess);
-        if (router.pathname === "/" || router.pathname === "/login") {
-          router.replace("/event-types");
-        }
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+      } catch (err) {
+        console.warn("Failed to ensure user profile", err);
       }
-      const sub = supabaseBrowserClient.auth.onAuthStateChange(async (event, s) => {
-        if (s?.access_token) {
-          fetch("/api/auth/ensure-user", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${s.access_token}` },
-          }).catch(() => {});
-          await maybeStoreGoogleCredentials(s);
-          if (router.pathname === "/" || router.pathname === "/login") {
-            router.replace("/event-types");
-          }
-        }
-        if (event === "SIGNED_OUT") {
-          if (router.pathname !== "/login") {
-            router.replace("/login");
-          }
-        }
-      });
-      unsub = () => sub.data.subscription.unsubscribe();
+
+      try {
+        await maybeStoreGoogleCredentials(session);
+      } catch (err) {
+        console.warn("Failed to persist Google credentials", err);
+      }
+
+      if (router.pathname === "/" || router.pathname === "/login") {
+        router.replace("/event-types");
+      }
     };
-    init();
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [router]);
+
+    run();
+  }, [session, status, router]);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      processedTokensRef.current.clear();
+      const protectedPrefixes = ["/event-types", "/bookings", "/availability", "/settings"];
+      const shouldRedirect =
+        router.pathname !== "/login" &&
+        protectedPrefixes.some((prefix) => router.pathname.startsWith(prefix));
+      if (shouldRedirect) {
+        router.replace("/login");
+      }
+    }
+  }, [status, router]);
   return (
-    <div>
+    <div className="min-h-screen bg-slate-900 text-slate-100 relative">
       <Head>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <title>CalendlAI</title>
       </Head>
-      <header className="flex justify-between items-center p-4 border-b">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold">CalendlAI</h1>
-          <UserGreeting />
-        </div>
-        <AuthButtons />
-      </header>
-      <main className="p-6">
-        <Component {...pageProps} />
-      </main>
+      <div className="absolute inset-0 -z-10 bg-gradient-hero opacity-80" />
+      <div className="absolute inset-0 -z-20 bg-gradient-ai" />
+      <div className="absolute inset-0 -z-30 bg-slate-800" />
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 pb-16 pt-8">
+        <header className="glass-panel flex items-center justify-between px-6 py-4 shadow-floating">
+          <Link href="/" className="flex items-center gap-3 text-slate-50">
+            <span className="relative grid h-10 w-10 place-items-center rounded-full bg-white/10">
+              <span className="absolute h-8 w-8 rounded-full bg-accent-teal/40 blur-lg" />
+              <span className="relative text-lg font-semibold">CɅ</span>
+            </span>
+            <div className="leading-tight">
+              <p className="text-lg font-semibold">CalendlAI</p>
+              <p className="text-xs text-slate-300">AI scheduling co-pilot</p>
+            </div>
+          </Link>
+          <div className="flex items-center gap-4">
+            <UserGreeting />
+            <AuthButtons />
+          </div>
+        </header>
+        <main className="mt-10 flex-1">
+          <Component {...pageProps} />
+        </main>
+        <footer className="mt-10 flex items-center justify-between text-xs text-slate-400">
+          <span>© {new Date().getFullYear()} CalendlAI. Crafted with intelligence.</span>
+          <div className="flex items-center gap-3">
+            <a href="https://calendlai.vercel.app" target="_blank" rel="noreferrer" className="hover:text-accent-teal">
+              Production
+            </a>
+            <a href="/tos" className="hover:text-accent-teal">Terms</a>
+            <a href="/privacy" className="hover:text-accent-teal">Privacy</a>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-accent-teal" />
+              Status: Operational
+            </span>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

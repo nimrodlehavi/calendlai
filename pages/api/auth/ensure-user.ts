@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
+import { supabaseAnonKey, supabaseUrl } from "../../../lib/supabaseConfig";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -10,10 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!token) return res.status(401).json({ error: "Missing Authorization token" });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-
-  const supabase = createClient(supabaseUrl, supabaseAnon, {
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false },
   });
@@ -33,4 +31,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(200).json({ ok: true, id: user.id, email });
 }
-

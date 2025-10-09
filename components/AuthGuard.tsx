@@ -1,9 +1,8 @@
 // components/AuthGuard.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import type { Session } from "@supabase/supabase-js";
-import { supabaseBrowserClient } from "../lib/supabaseBrowserClient";
 import AuthButtons from "./AuthButtons";
+import { useSupabaseSession } from "../hooks/useSupabaseSession";
 
 type Props = {
   children: React.ReactNode;
@@ -13,59 +12,57 @@ type Props = {
 
 export default function AuthGuard({ children, redirectTo = null }: Props) {
   const router = useRouter();
-  const [session, setSession] = useState<Session | null | "loading">("loading");
+  const { session, status, error } = useSupabaseSession();
+  const redirectingRef = useRef(false);
 
   useEffect(() => {
-    let mounted = true;
+    if (!redirectTo || status !== "unauthenticated" || redirectingRef.current) return;
+    redirectingRef.current = true;
+    if (typeof window !== "undefined") {
+      router.replace(redirectTo);
+    }
+  }, [redirectTo, status, router]);
 
-    const run = async () => {
-      const { data } = await supabaseBrowserClient.auth.getSession();
-      if (!mounted) return;
-      setSession(data.session ?? null);
-    };
-    run();
-
-    const { data: sub } = supabaseBrowserClient.auth.onAuthStateChange((event, s) => {
-      setSession(s ?? null);
-      if (event === "SIGNED_IN" && router.pathname === "/login") {
-        router.replace("/event-types");
-      }
-    });
-
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
-  }, [router]);
-
-  if (session === "loading") {
+  if (status === "loading") {
     return (
-      <div className="min-h-[40vh] grid place-items-center text-gray-600">
-        <div className="animate-pulse text-sm">Loading…</div>
+      <div className="min-h-[40vh] grid place-items-center text-slate-300">
+        <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs uppercase tracking-[0.3em]">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-accent-teal" />
+          Verifying session
+        </div>
       </div>
     );
   }
 
-  if (!session) {
+  if (status === "unauthenticated" || !session) {
     if (redirectTo) {
       // Optional redirect mode (e.g., use <AuthGuard redirectTo="/login">)
-      if (typeof window !== "undefined") router.replace(redirectTo);
-      return null;
+      return (
+        <div className="min-h-[40vh] grid place-items-center text-slate-300">
+          <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs uppercase tracking-[0.3em]">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-accent-teal" />
+            Redirecting to sign in…
+          </div>
+        </div>
+      );
     }
 
     // Inline prompt mode: show sign-in UI in-place
     return (
-      <div className="min-h-[60vh] grid place-items-center p-6">
-        <div className="w-full max-w-md rounded-2xl border p-6 shadow-sm">
-          <h2 className="text-xl font-semibold mb-2">Sign in to continue</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Use email (magic link) or OAuth.
-          </p>
+      <div className="min-h-[60vh] grid place-items-center px-6 py-12">
+        <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-900/70 p-8 shadow-floating backdrop-blur-xl">
+          <h2 className="text-2xl font-semibold text-slate-50">Sign in to continue</h2>
+          <p className="mt-2 text-sm text-slate-300">Use a magic link or connect with Google to sync calendars instantly.</p>
+          {error && (
+            <div className="mt-3 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+              {error}
+            </div>
+          )}
           <InlineMagicLinkForm />
-          <div className="my-4 flex items-center gap-3">
-            <div className="h-px bg-gray-200 flex-1" />
-            <span className="text-xs text-gray-500">or</span>
-            <div className="h-px bg-gray-200 flex-1" />
+          <div className="my-6 flex items-center gap-3 text-slate-500">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-[10px] uppercase tracking-[0.3em]">or</span>
+            <div className="h-px flex-1 bg-white/10" />
           </div>
           <AuthButtons />
         </div>
@@ -88,9 +85,10 @@ function InlineMagicLinkForm() {
     setError(null);
     setSending(true);
     try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const r = await fetch('/api/auth/send-magic-link', {
         method: 'POST', headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ email, redirectTo: `${location.origin}/` })
+        body: JSON.stringify({ email, redirectTo: origin ? `${origin}/` : undefined })
       });
       const j = await r.json().catch(()=> ({}));
       setSending(false);
@@ -100,30 +98,26 @@ function InlineMagicLinkForm() {
 
   if (sent) {
     return (
-      <div className="rounded-md bg-green-50 text-green-900 text-sm p-3">
+      <div className="mt-4 rounded-xl border border-accent-teal/40 bg-accent-teal/10 px-4 py-3 text-sm text-accent-teal">
         Magic link sent. Check your inbox.
       </div>
     );
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2">
-      <label className="text-sm font-medium">Email</label>
+    <form onSubmit={submit} className="mt-6 flex flex-col gap-3 text-slate-200">
+      <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Email</label>
       <input
         type="email"
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="border rounded-md px-3 py-2"
+        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-accent-teal/80 focus:bg-white/10"
         placeholder="you@company.com"
       />
-      {error && <div className="text-sm text-red-600">{error}</div>}
-      <button
-        type="submit"
-        disabled={sending}
-        className="mt-1 rounded-md bg-black text-white px-3 py-2 disabled:opacity-60"
-      >
-        {sending ? "Sending…" : "Send magic link"}
+      {error && <div className="text-xs text-rose-300">{error}</div>}
+      <button type="submit" disabled={sending} className="btn-primary mt-2 px-6">
+        {sending ? "Sending…" : "Email me a link"}
       </button>
     </form>
   );

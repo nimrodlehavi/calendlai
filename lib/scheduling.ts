@@ -1,18 +1,15 @@
 import { google } from "googleapis";
-import { createClient } from "@supabase/supabase-js";
 import { getHostGoogleAccessToken } from "./googleTokens";
 import { supabaseServerClient as supabase } from "./supabaseClient";
+import { supabaseServiceClient } from "./supabaseServiceClient";
 
-const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string | undefined;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string | undefined;
-const serviceClient = serviceUrl && serviceKey
-  ? createClient(serviceUrl, serviceKey, { auth: { persistSession: false } })
-  : null;
+const serviceClient = supabaseServiceClient ?? null;
 
 export type SchedulingMode = "solo" | "round_robin" | "collective";
 
 export type EventTypeContext = {
   id: string;
+  name: string;
   user_id: string | null;
   duration_minutes: number;
   buffer_before: number | null;
@@ -61,7 +58,7 @@ export async function fetchEventTypeContext(eventTypeId: string): Promise<{
       const fallback = await client
         .from("event_types")
         .select(
-          "id, user_id, duration_minutes, buffer_before, buffer_after, min_notice_minutes"
+          "id, name, user_id, duration_minutes, buffer_before, buffer_after, min_notice_minutes"
         )
         .eq("id", eventTypeId)
         .single();
@@ -69,7 +66,7 @@ export async function fetchEventTypeContext(eventTypeId: string): Promise<{
       error = fallback.error;
     }
   } else {
-    const baseSelect = "id, user_id, duration_minutes, buffer_before, buffer_after, min_notice_minutes, scheduling_mode, team_id";
+    const baseSelect = "id, name, user_id, duration_minutes, buffer_before, buffer_after, min_notice_minutes, scheduling_mode, team_id";
     const res = await client
       .from("event_types")
       .select(baseSelect)
@@ -82,7 +79,7 @@ export async function fetchEventTypeContext(eventTypeId: string): Promise<{
   if (error?.code === "42703" || (error && /scheduling_mode/.test(error.message || ""))) {
     const fallback = await client
       .from("event_types")
-      .select("id, user_id, duration_minutes, buffer_before, buffer_after, min_notice_minutes, team_id")
+      .select("id, name, user_id, duration_minutes, buffer_before, buffer_after, min_notice_minutes, team_id")
       .eq("id", eventTypeId)
       .single();
     if (!fallback.error && fallback.data) {
