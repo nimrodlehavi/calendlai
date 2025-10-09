@@ -1,335 +1,501 @@
 // pages/availability.tsx
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AuthGuard from "../components/AuthGuard";
+import Layout from "../components/Layout";
 import { supabaseBrowserClient } from "../lib/supabaseBrowserClient";
 import { Toast } from "../components/Toast";
 
 type Window = { id: string; day_of_week: number; start_time: string; end_time: string };
 type Block = { id: string; start_time: string; end_time: string };
 
-const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_OPTIONS = DOW.map((label, idx) => ({ label, value: idx }));
 
-export default function AvailabilityPage(){
-  return (
-    <AuthGuard redirectTo="/login">
-      <Content />
-    </AuthGuard>
-  );
-}
+export default function AvailabilityPage() {
+   return (
+     <AuthGuard redirectTo="/login">
+       <Content />
+     </AuthGuard>
+   );
+ }
 
-function Content(){
-  const [userId, setUserId] = useState<string | null>(null);
-  const [windows, setWindows] = useState<Window[]>([]);
-  const [blocks, setBlocks] = useState<Block[]>([]);
-  const [toast, setToast] = useState<{msg:string;type:'success'|'error'|'info'}|null>(null);
+ function Content() {
+   const [userId, setUserId] = useState<string | null>(null);
+   const [windows, setWindows] = useState<Window[]>([]);
+   const [blocks, setBlocks] = useState<Block[]>([]);
+   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
+   const [addingWindow, setAddingWindow] = useState(false);
+   const [addingBlock, setAddingBlock] = useState(false);
 
-  const byDay = useMemo(() => {
-    const m: Record<number, Window[]> = {0:[],1:[],2:[],3:[],4:[],5:[],6:[]};
-    for (const w of windows) { (m[w.day_of_week] ||= []).push(w); }
-    for (const k of Object.keys(m)) m[Number(k)].sort((a,b)=> a.start_time.localeCompare(b.start_time));
-    return m;
-  }, [windows]);
+   const windowsByDay = useMemo(() => {
+     const map: Record<number, Window[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+     for (const win of windows) {
+       (map[win.day_of_week] ||= []).push(win);
+     }
+     Object.values(map).forEach((arr) => arr.sort((a, b) => a.start_time.localeCompare(b.start_time)));
+     return map;
+   }, [windows]);
 
-  useEffect(() => {
-    const run = async () => {
-      const { data: s } = await supabaseBrowserClient.auth.getUser();
-      const id = s.user?.id || null;
-      setUserId(id);
-      if (!id) return;
-      const [{ data: w }, { data: b }] = await Promise.all([
-        supabaseBrowserClient.from('availability_windows').select('id, day_of_week, start_time, end_time').eq('user_id', id),
-        supabaseBrowserClient.from('blocks').select('id, start_time, end_time').eq('user_id', id).order('start_time', { ascending: true })
-      ]);
-      setWindows((w as any) || []);
-      setBlocks((b as any) || []);
-    };
-    run();
-  }, []);
+   useEffect(() => {
+     const run = async () => {
+       const { data: s } = await supabaseBrowserClient.auth.getUser();
+       const id = s.user?.id || null;
+       setUserId(id);
+       if (!id) return;
+       const [{ data: w }, { data: b }] = await Promise.all([
+         supabaseBrowserClient.from("availability_windows").select("id, day_of_week, start_time, end_time").eq("user_id", id),
+         supabaseBrowserClient.from("blocks").select("id, start_time, end_time").eq("user_id", id).order("start_time", { ascending: true }),
+       ]);
+       setWindows((w as any) || []);
+       setBlocks((b as any) || []);
+     };
+     run();
+   }, []);
 
-  async function addWindow(day: number, start_time: string, end_time: string){
-    if (!userId) return;
-    const { data, error } = await supabaseBrowserClient.from('availability_windows').insert({ user_id: userId, day_of_week: day, start_time, end_time }).select('id, day_of_week, start_time, end_time').single();
-    if (error) return setToast({ msg: error.message, type: 'error' });
-    setWindows([...(windows||[]), data as any]);
-    setToast({ msg: 'Added window', type: 'success' });
-  }
-  async function deleteWindow(id: string){
-    await supabaseBrowserClient.from('availability_windows').delete().eq('id', id);
-    setWindows(windows.filter(w=> w.id !== id));
-  }
+   async function handleAddWindow(day: number, start_time: string, end_time: string) {
+     if (!userId) return;
+     setAddingWindow(true);
+     try {
+       const { data, error } = await supabaseBrowserClient
+         .from("availability_windows")
+         .insert({ user_id: userId, day_of_week: day, start_time, end_time })
+         .select("id, day_of_week, start_time, end_time")
+         .single();
+       if (error) throw error;
+       setWindows((prev) => [...prev, data as Window]);
+       setToast({ msg: "Window added", type: "success" });
+     } catch (err: any) {
+       setToast({ msg: err.message || "Failed to add window", type: "error" });
+     } finally {
+       setAddingWindow(false);
+     }
+   }
 
-  async function addBlock(start: string, end: string){
-    if (!userId) return;
-    const { data, error } = await supabaseBrowserClient.from('blocks').insert({ user_id: userId, start_time: start, end_time: end }).select('id, start_time, end_time').single();
-    if (error) return setToast({ msg: error.message, type: 'error' });
-    setBlocks([...(blocks||[]), data as any].sort((a,b)=> a.start_time.localeCompare(b.start_time)));
-    setToast({ msg: 'Blocked time added', type: 'success' });
-  }
-  async function deleteBlock(id: string){
-    await supabaseBrowserClient.from('blocks').delete().eq('id', id);
-    setBlocks(blocks.filter(b=> b.id !== id));
-  }
+   async function deleteWindow(id: string) {
+     await supabaseBrowserClient.from("availability_windows").delete().eq("id", id);
+     setWindows((prev) => prev.filter((w) => w.id !== id));
+   }
 
-  return (
-    <main className="max-w-4xl mx-auto space-y-8">
-      <h1 className="text-2xl font-bold">Availability</h1>
+   async function addBlock(start: string, end: string) {
+     if (!userId) return;
+     setAddingBlock(true);
+     try {
+       const { data, error } = await supabaseBrowserClient
+         .from("blocks")
+         .insert({ user_id: userId, start_time: start, end_time: end })
+         .select("id, start_time, end_time")
+         .single();
+       if (error) throw error;
+       setBlocks((prev) => [...prev, data as Block].sort((a, b) => a.start_time.localeCompare(b.start_time)));
+       setToast({ msg: "Time blocked", type: "success" });
+     } catch (err: any) {
+       setToast({ msg: err.message || "Failed to add block", type: "error" });
+     } finally {
+       setAddingBlock(false);
+     }
+   }
 
-      <section className="rounded-xl border">
-        <div className="p-4 border-b font-medium">Weekly hours</div>
-        <div className="p-4">
-          <WeekAvailabilityGrid windows={windows} onSave={async (daySlots) => {
-            if (!userId) return;
-            // Replace all windows with merged slots
-            await supabaseBrowserClient.from('availability_windows').delete().eq('user_id', userId);
-            const rows: any[] = [];
-            for (let d=0; d<7; d++) {
-              const slots = daySlots[d] || [];
-              // Merge contiguous 30-min slots
-              let i = 0;
-              while (i < slots.length) {
-                if (!slots[i]) { i++; continue; }
-                let j = i;
-                while (j < slots.length && slots[j]) j++;
-                const start = i; const end = j; // [start, end)
-                const toTime = (idx:number) => {
-                  const h = Math.floor(idx/2);
-                  const m = idx%2 ? 30 : 0;
-                  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
-                };
-                rows.push({ user_id: userId, day_of_week: d, start_time: toTime(start), end_time: toTime(end) });
-                i = j;
-              }
-            }
-            if (rows.length) {
-              const { error } = await supabaseBrowserClient.from('availability_windows').insert(rows);
-              if (error) setToast({ msg: error.message, type:'error' }); else setToast({ msg:'Weekly hours saved', type:'success' });
-            } else {
-              setToast({ msg:'Cleared weekly hours', type:'success' });
-            }
-            // reload
-            const { data: w } = await supabaseBrowserClient.from('availability_windows').select('id, day_of_week, start_time, end_time').eq('user_id', userId);
-            setWindows((w as any) || []);
-          }} />
-        </div>
-      </section>
+   async function deleteBlock(id: string) {
+     await supabaseBrowserClient.from("blocks").delete().eq("id", id);
+     setBlocks((prev) => prev.filter((b) => b.id !== id));
+   }
 
-      <section className="rounded-xl border">
-        <div className="p-4 border-b font-medium">One-off blocks (vacations, overrides)</div>
-        <div className="p-4 space-y-4">
-          <AddBlockForm onAdd={addBlock} />
-          <ul className="divide-y">
-            {blocks.length === 0 ? (
-              <li className="p-2 text-sm text-gray-600">No blocks</li>
-            ) : blocks.map(b => (
-              <li key={b.id} className="p-2 flex items-center justify-between text-sm">
-                <span>{new Date(b.start_time).toLocaleString()} – {new Date(b.end_time).toLocaleString()}</span>
-                <button onClick={()=> deleteBlock(b.id)} className="text-red-600">Delete</button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+   return (
+     <Layout>
+       <div className="space-y-8">
+         <header className="flex flex-wrap items-center justify-between gap-3">
+           <div>
+             <h1 className="text-2xl font-semibold text-slate-50">Availability</h1>
+             <p className="text-sm text-slate-300">Shape the rhythm your AI co-pilot can optimize.</p>
+           </div>
+           <span className="text-xs font-medium text-slate-300">{windows.length} window{windows.length === 1 ? "" : "s"}</span>
+         </header>
 
-      {toast && <Toast message={toast.msg} type={toast.type} />}
-    </main>
-  );
-}
+         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+           <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
+             <header className="flex flex-wrap items-center justify-between gap-3">
+               <div>
+                 <h2 className="text-lg font-semibold text-slate-100">Weekly hours</h2>
+                 <p className="text-xs text-slate-400">Drag across the grid to paint availability.</p>
+               </div>
+               <span className="rounded-full bg-accent-teal/15 px-4 py-1 text-xs font-semibold text-accent-teal">
+                 {windows.length ? "Synced" : "No hours yet"}
+               </span>
+             </header>
+             <div className="mt-6">
+               <WeekAvailabilityGrid
+                 windows={windows}
+                 onSave={async (daySlots) => {
+                   if (!userId) return;
+                   await supabaseBrowserClient.from("availability_windows").delete().eq("user_id", userId);
 
-function AddWindowForm({ onAdd }:{ onAdd: (start: string, end: string) => void }){
-  const [start, setStart] = useState("09:00");
-  const [end, setEnd] = useState("17:00");
-  return (
-    <form onSubmit={e=> { e.preventDefault(); onAdd(start, end); }} className="mt-3 flex items-end gap-2 text-sm">
-      <div>
-        <label className="block text-xs">Start</label>
-        <input type="time" value={start} onChange={e=> setStart(e.target.value)} className="border rounded px-2 py-1" />
-      </div>
-      <div>
-        <label className="block text-xs">End</label>
-        <input type="time" value={end} onChange={e=> setEnd(e.target.value)} className="border rounded px-2 py-1" />
-      </div>
-      <button className="px-2 py-1 rounded border">Add</button>
-    </form>
-  );
-}
+                   const rows: any[] = [];
+                   for (let d = 0; d < 7; d++) {
+                     const slots = daySlots[d] || [];
+                     let i = 0;
+                     while (i < slots.length) {
+                       if (!slots[i]) {
+                         i++;
+                         continue;
+                       }
+                       let j = i;
+                       while (j < slots.length && slots[j]) j++;
+                       const toTime = (idx: number) => {
+                         const hour = Math.floor(idx / 2);
+                         const minute = idx % 2 ? 30 : 0;
+                         return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
+                       };
+                       rows.push({
+                         user_id: userId,
+                         day_of_week: d,
+                         start_time: toTime(i),
+                         end_time: toTime(j),
+                       });
+                       i = j;
+                     }
+                   }
 
-function AddBlockForm({ onAdd }:{ onAdd: (start: string, end: string) => void }){
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
-  return (
-    <form onSubmit={e=> { e.preventDefault(); if (start && end) onAdd(new Date(start).toISOString(), new Date(end).toISOString()); }} className="flex flex-col md:flex-row gap-2 items-end text-sm">
-      <div>
-        <label className="block text-xs">Start</label>
-        <input type="datetime-local" value={start} onChange={e=> setStart(e.target.value)} className="border rounded px-2 py-1" />
-      </div>
-      <div>
-        <label className="block text-xs">End</label>
-        <input type="datetime-local" value={end} onChange={e=> setEnd(e.target.value)} className="border rounded px-2 py-1" />
-      </div>
-      <button className="px-2 py-1 rounded border" disabled={!start || !end}>Add block</button>
-    </form>
-  );
-}
+                   if (rows.length) {
+                     const { error } = await supabaseBrowserClient.from("availability_windows").insert(rows);
+                     if (error) {
+                       setToast({ msg: error.message, type: "error" });
+                     } else {
+                       setToast({ msg: "Weekly hours saved", type: "success" });
+                     }
+                     const { data: w } = await supabaseBrowserClient
+                       .from("availability_windows")
+                       .select("id, day_of_week, start_time, end_time")
+                       .eq("user_id", userId);
+                     setWindows((w as any) || []);
+                   } else {
+                     setToast({ msg: "Cleared weekly hours", type: "info" });
+                     setWindows([]);
+                   }
+                 }}
+               />
+             </div>
+           </section>
 
-function WeekAvailabilityGrid({ windows, onSave}:{ windows: Window[]; onSave: (daySlots: boolean[][]) => void }){
-  const SLOT_COUNT = 48; // 30-min slots
-  const toIdx = (t:string) => { const [hh,mm] = t.split(':').map(Number); return hh*2 + (mm>=30?1:0); };
-  const idxToLabel = (idx:number) => {
-    const hh = Math.floor(idx/2); const mm = idx%2 ? '30' : '00';
-    return `${String(hh).padStart(2,'0')}:${mm}`;
-  };
-  function buildGridFromWindows() {
-    const g: boolean[][] = Array.from({length:7}, ()=> Array(SLOT_COUNT).fill(false));
-    for (const w of windows) {
-      const d = w.day_of_week;
-      const st = w.start_time.slice(0,5);
-      const et = w.end_time.slice(0,5);
-      let i = toIdx(st), j = toIdx(et);
-      i = Math.max(0, Math.min(SLOT_COUNT, i));
-      j = Math.max(0, Math.min(SLOT_COUNT, j));
-      for (let k=i; k<j; k++) g[d][k] = true;
-    }
-    return g;
-  }
-  function buildDayStartDefaults() {
-    const defaults = Array.from({length:7}, ()=> 16);
-    const mins = windows.reduce((acc:any,w)=>{ acc[w.day_of_week] = Math.min(acc[w.day_of_week] ?? SLOT_COUNT, toIdx(w.start_time.slice(0,5))); return acc; }, {} as Record<number,number>);
-    const arr = defaults.slice();
-    (Object.entries(mins) as [string, number][]).forEach(([d, i]) => {
-      const idx = Number(d);
-      arr[idx] = Math.min(arr[idx], i);
-    });
-    return arr;
-  }
-  function buildDayEndDefaults() {
-    const defaults = Array.from({length:7}, ()=> 40);
-    const maxs = windows.reduce((acc:any,w)=>{ acc[w.day_of_week] = Math.max(acc[w.day_of_week] ?? 0, toIdx(w.end_time.slice(0,5))); return acc; }, {} as Record<number,number>);
-    const arr = defaults.slice();
-    (Object.entries(maxs) as [string, number][]).forEach(([d, i]) => {
-      const idx = Number(d);
-      arr[idx] = Math.max(arr[idx], i);
-    });
-    return arr;
-  }
-  // Build initial grid from windows
-  const [grid, setGrid] = useState<boolean[][]>(buildGridFromWindows);
+           <section className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-6">
+             <header>
+               <h2 className="text-lg font-semibold text-slate-100">Daily presets</h2>
+               <p className="text-xs text-slate-400">Fine-tune recurring windows or add quick slots per weekday.</p>
+             </header>
+             <AddWindowForm onAdd={handleAddWindow} busy={addingWindow} />
+             <div className="space-y-4">
+               {DAY_OPTIONS.map(({ value, label }) => {
+                 const dayWindows = windowsByDay[value];
+                 return (
+                   <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                     <div className="flex items-center justify-between">
+                       <p className="font-semibold text-slate-100">{label}</p>
+                       <span className="text-xs text-slate-400">{dayWindows.length} slot{dayWindows.length === 1 ? "" : "s"}</span>
+                     </div>
+                     {dayWindows.length === 0 ? (
+                       <p className="mt-2 text-xs text-slate-500">No recurring windows for this day.</p>
+                     ) : (
+                       <ul className="mt-3 space-y-2">
+                         {dayWindows.map((win) => (
+                           <li key={win.id} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                             <span className="text-xs font-medium text-slate-100">
+                               {formatRange(win.start_time, win.end_time)}
+                             </span>
+                             <button
+                               onClick={() => deleteWindow(win.id)}
+                               className="text-xs font-semibold text-rose-300 hover:text-rose-200"
+                             >
+                               Remove
+                             </button>
+                           </li>
+                         ))}
+                       </ul>
+                     )}
+                   </div>
+                 );
+               })}
+             </div>
+           </section>
+         </div>
+
+         <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
+           <header className="flex flex-wrap items-center justify-between gap-3">
+             <div>
+               <h2 className="text-lg font-semibold text-slate-100">One-off blocks</h2>
+               <p className="text-xs text-slate-400">Use this for vacations, travel, or overrides synced to your calendar.</p>
+             </div>
+           </header>
+           <div className="mt-4 space-y-4">
+             <AddBlockForm onAdd={addBlock} busy={addingBlock} />
+             <ul className="space-y-3 text-sm">
+               {blocks.length === 0 ? (
+                 <li className="rounded-2xl border border-dashed border-white/15 bg-white/5 px-4 py-3 text-slate-400">
+                   No overrides yet.
+                 </li>
+               ) : (
+                 blocks.map((block) => (
+                   <li key={block.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100">
+                     <span>
+                       {new Date(block.start_time).toLocaleString()} – {new Date(block.end_time).toLocaleString()}
+                     </span>
+                     <button
+                       onClick={() => deleteBlock(block.id)}
+                       className="text-xs font-semibold text-rose-300 hover:text-rose-100"
+                     >
+                       Remove
+                     </button>
+                   </li>
+                 ))
+               )}
+             </ul>
+           </div>
+         </section>
+
+         {toast && <Toast message={toast.msg} type={toast.type} />}
+       </div>
+     </Layout>
+   );
+ }
+
+ function AddWindowForm({ onAdd, busy }: { onAdd: (day: number, start: string, end: string) => void; busy: boolean }) {
+   const [day, setDay] = useState<number>(1);
+   const [start, setStart] = useState("09:00");
+   const [end, setEnd] = useState("17:00");
+
+   return (
+     <form
+       onSubmit={(e) => {
+         e.preventDefault();
+         onAdd(day, `${start}:00`, `${end}:00`);
+       }}
+       className="grid gap-3 text-sm text-slate-200 md:grid-cols-[1fr_1fr_1fr_auto]"
+     >
+       <label className="space-y-1">
+         <span className="text-xs text-slate-400">Day</span>
+         <select
+           value={day}
+           onChange={(e) => setDay(Number(e.target.value))}
+           className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
+         >
+           {DAY_OPTIONS.map((opt) => (
+             <option key={opt.value} value={opt.value}>
+               {opt.label}
+             </option>
+           ))}
+         </select>
+       </label>
+       <label className="space-y-1">
+         <span className="text-xs text-slate-400">Start</span>
+         <input
+           type="time"
+           value={start}
+           onChange={(e) => setStart(e.target.value)}
+           className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
+         />
+       </label>
+       <label className="space-y-1">
+         <span className="text-xs text-slate-400">End</span>
+         <input
+           type="time"
+           value={end}
+           onChange={(e) => setEnd(e.target.value)}
+           className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
+         />
+       </label>
+       <button type="submit" disabled={busy} className="btn-primary h-full px-5">
+         {busy ? "Adding…" : "Add"}
+       </button>
+     </form>
+   );
+ }
+
+ function AddBlockForm({ onAdd, busy }: { onAdd: (start: string, end: string) => void; busy: boolean }) {
+   const [start, setStart] = useState("");
+   const [end, setEnd] = useState("");
+
+   return (
+     <form
+       onSubmit={(e) => {
+         e.preventDefault();
+         if (!start || !end) return;
+         onAdd(new Date(start).toISOString(), new Date(end).toISOString());
+         setStart("");
+         setEnd("");
+       }}
+       className="grid gap-3 text-sm text-slate-200 md:grid-cols-[1fr_1fr_auto]"
+     >
+       <label className="space-y-1">
+         <span className="text-xs text-slate-400">Start</span>
+         <input
+           type="datetime-local"
+           value={start}
+           onChange={(e) => setStart(e.target.value)}
+           className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
+         />
+       </label>
+       <label className="space-y-1">
+         <span className="text-xs text-slate-400">End</span>
+         <input
+           type="datetime-local"
+           value={end}
+           onChange={(e) => setEnd(e.target.value)}
+           className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
+         />
+       </label>
+       <button type="submit" className="btn-secondary h-full px-5" disabled={!start || !end || busy}>
+         {busy ? "Adding…" : "Add block"}
+       </button>
+     </form>
+   );
+ }
+
+ function WeekAvailabilityGrid({
+   windows,
+   onSave,
+ }: {
+   windows: Window[];
+   onSave: (daySlots: boolean[][]) => Promise<void> | void;
+ }) {
+   const SLOT_COUNT = 48; // 30-min slots
+   const toIdx = (t: string) => {
+     const [hh, mm] = t.split(":").map(Number);
+     return hh * 2 + (mm >= 30 ? 1 : 0);
+   };
+
+   const buildGridFromWindows = () => {
+     const grid: boolean[][] = Array.from({ length: 7 }, () => Array(SLOT_COUNT).fill(false));
+     for (const win of windows) {
+       const day = win.day_of_week;
+       let start = toIdx(win.start_time.slice(0, 5));
+       let end = toIdx(win.end_time.slice(0, 5));
+       start = Math.max(0, Math.min(SLOT_COUNT, start));
+       end = Math.max(0, Math.min(SLOT_COUNT, end));
+       for (let i = start; i < end; i++) grid[day][i] = true;
+     }
+     return grid;
+   };
+
+   const [grid, setGrid] = useState<boolean[][]>(buildGridFromWindows);
+   const [isDragging, setIsDragging] = useState(false);
+   const [dragState, setDragState] = useState<"on" | "off" | null>(null);
+   const [saving, setSaving] = useState(false);
+   const [status, setStatus] = useState<string | null>(null);
+
   useEffect(() => {
     setGrid(buildGridFromWindows());
   }, [windows]);
-  // Per-day visible range selectors (default 08:00 - 20:00), prefilled from existing windows if present
-  const [dayStart, setDayStart] = useState<number[]>(buildDayStartDefaults);
-  const [dayEnd, setDayEnd] = useState<number[]>(buildDayEndDefaults);
+
+  const handleMouseDown = (day: number, slot: number) => {
+    setIsDragging(true);
+    const nextState = !grid[day][slot];
+    setDragState(nextState ? "on" : "off");
+    setGrid((prev) => {
+      const copy = prev.map((row) => [...row]);
+      copy[day][slot] = nextState;
+      return copy;
+    });
+  };
+
+  const handleMouseEnter = (day: number, slot: number) => {
+    if (!isDragging || !dragState) return;
+    setGrid((prev) => {
+      const copy = prev.map((row) => [...row]);
+      copy[day][slot] = dragState === "on";
+      return copy;
+    });
+  };
+
+  const handleMouseUp = useCallback(async () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    setDragState(null);
+    try {
+      setSaving(true);
+      await onSave(grid);
+      setStatus("Saved");
+      setTimeout(() => setStatus(null), 2000);
+    } finally {
+      setSaving(false);
+    }
+  }, [grid, isDragging, onSave]);
 
   useEffect(() => {
-    setDayStart(buildDayStartDefaults());
-    setDayEnd(buildDayEndDefaults());
-  }, [windows]);
+    if (typeof window === "undefined") return;
+    const up = () => handleMouseUp();
+    window.addEventListener("mouseup", up);
+    return () => window.removeEventListener("mouseup", up);
+  }, [handleMouseUp]);
 
-  const dragging = useRef<{ active: boolean; setTo: boolean }|null>(null);
-
-  function handleMouseDown(d:number, s:number) {
-    // Only if within visible range
-    if (s < dayStart[d] || s >= dayEnd[d]) return;
-    const setTo = !grid[d][s];
-    dragging.current = { active: true, setTo };
-    setGrid(prev => {
-      const copy = prev.map(r=> [...r]);
-      copy[d][s] = setTo; return copy;
-    });
-  }
-  function handleMouseEnter(d:number, s:number) {
-    if (!dragging.current?.active) return;
-    if (s < dayStart[d] || s >= dayEnd[d]) return;
-    const setTo = dragging.current.setTo;
-    setGrid(prev => {
-      const copy = prev.map(r=> [...r]);
-      copy[d][s] = setTo; return copy;
-    });
-  }
-  function handleMouseUp(){ dragging.current = null; }
-
-  function toggleDay(d:number, value:boolean){
-    setGrid(prev => { const copy = prev.map(r=> [...r]); for (let i=dayStart[d]; i<dayEnd[d]; i++) copy[d][i]=value; return copy; });
-  }
-  function clearAll(){ setGrid(Array.from({length:7}, ()=> Array(SLOT_COUNT).fill(false))); }
-
-  function onChangeDayStart(d:number, idx:number){
-    setDayStart(prev => {
-      const next = [...prev]; next[d] = Math.min(idx, dayEnd[d]-1); return next;
-    });
-    setGrid(prev => { const copy = prev.map(r=> [...r]); for (let i=0;i<SLOT_COUNT;i++){ if (i<idx || i>=dayEnd[d]) copy[d][i]=false; } return copy; });
-  }
-  function onChangeDayEnd(d:number, idx:number){
-    setDayEnd(prev => {
-      const next = [...prev]; next[d] = Math.max(idx, dayStart[d]+1); return next;
-    });
-    setGrid(prev => { const copy = prev.map(r=> [...r]); for (let i=0;i<SLOT_COUNT;i++){ if (i<dayStart[d] || i>=idx) copy[d][i]=false; } return copy; });
-  }
-
-  const displayStartHour = 8; // 08:00
-  const displayEndHour = 20; // 20:00
-  const hours = Array.from({length:displayEndHour-displayStartHour}, (_,i)=> i+displayStartHour);
-
-  const timeOptions = Array.from({length:(displayEndHour-displayStartHour)*2+1}, (_,i)=> displayStartHour*2 + i)
-    .map(idx => ({ idx, label: idxToLabel(idx) }));
-
-  return (
-    <div onMouseLeave={handleMouseUp}>
-      <div className="overflow-auto">
-        <div className="grid" style={{ gridTemplateColumns: `120px repeat(7, 1fr)` }}>
-          <div></div>
-          {DOW.map((d,idx)=> (
-            <div key={d} className="text-xs font-medium flex items-center justify-between px-2 gap-2">
-              <span>{d}</span>
-              <div className="flex items-center gap-1">
-                <select className="border rounded px-1 py-0.5" value={dayStart[idx]} onChange={e=> onChangeDayStart(idx, Number((e.target as HTMLSelectElement).value))}>
-                  {timeOptions.slice(0,-1).map(opt => (
-                    <option key={opt.idx} value={opt.idx}>{opt.label}</option>
-                  ))}
-                </select>
-                <span>–</span>
-                <select className="border rounded px-1 py-0.5" value={dayEnd[idx]} onChange={e=> onChangeDayEnd(idx, Number((e.target as HTMLSelectElement).value))}>
-                  {timeOptions.slice(1).map(opt => (
-                    <option key={opt.idx} value={opt.idx}>{opt.label}</option>
-                  ))}
-                </select>
-                <button className="text-xs underline" onClick={()=> toggleDay(idx, true)}>All</button>
-                <button className="text-xs underline" onClick={()=> toggleDay(idx, false)}>None</button>
-              </div>
-            </div>
-          ))}
-          {hours.map(h => (
-            <>
-              <div key={`h-${h}`} className="text-[10px] text-gray-600 border-t py-1 pr-2 text-right">{String(h).padStart(2,'0')}:00</div>
-              {Array.from({length:7}, (_,d)=> d).map(d => (
-                <div key={`c-${h}-${d}`} className="border-t">
-                  <div className="grid grid-rows-2">
-                    {[0,1].map(part => {
-                      const s = h*2 + part;
-                      const allowed = s >= dayStart[d] && s < dayEnd[d];
-                      const active = grid[d][s];
-                      return (
-                        <div
-                          key={`s-${d}-${s}`}
-                          onMouseDown={()=> allowed && handleMouseDown(d,s)}
-                          onMouseEnter={()=> allowed && handleMouseEnter(d,s)}
+   return (
+     <div className="space-y-4">
+       <div className="overflow-hidden rounded-2xl border border-white/10">
+         <div className="grid grid-cols-[80px_repeat(7,_minmax(0,_1fr))] text-xs text-slate-300">
+           <div className="bg-white/3 px-3 py-2">Time</div>
+           {DOW.map((day) => (
+             <div key={day} className="bg-white/3 px-3 py-2 text-center font-medium">
+               {day}
+             </div>
+           ))}
+         </div>
+         <div className="grid grid-cols-[80px_repeat(7,_minmax(0,_1fr))] text-[11px]">
+           {Array.from({ length: SLOT_COUNT }).map((_, row) => {
+             const hour = Math.floor(row / 2);
+             const label = `${String(hour).padStart(2, "0")}:${row % 2 ? "30" : "00"}`;
+             return (
+               <>
+                 <div key={`label-${row}`} className="border-t border-white/5 bg-white/3 px-2 py-1 text-right text-slate-400">
+                   {row % 2 === 0 ? label : ""}
+                 </div>
+                 {Array.from({ length: 7 }).map((_, day) => {
+                   const active = grid[day][row];
+                   return (
+                     <div
+                       key={`slot-${day}-${row}`}
+                       className={`border-t border-white/5 ${day === 0 ? "" : "border-l"} border-white/5`}
+                     >
+                        <button
+                          type="button"
+                          onMouseDown={() => handleMouseDown(day, row)}
+                          onMouseEnter={() => handleMouseEnter(day, row)}
                           onMouseUp={handleMouseUp}
-                          className={`h-5 md:h-6 ${allowed? 'cursor-pointer' : 'cursor-not-allowed opacity-30'} ${active? 'bg-blue-600':'hover:bg-gray-100'}`}
-                          title={`${String(h).padStart(2,'0')}:${part? '30':'00'}`}
+                          className={`h-5 w-full md:h-6 ${
+                            active
+                              ? "bg-gradient-to-br from-midnight-400 via-midnight-500 to-accent-teal/40 shadow-[0_0_10px_rgba(45,110,255,0.35)]"
+                              : "hover:bg-midnight-500/15"
+                          } transition-colors duration-150`}
+                          title={`${DOW[day]} ${label}`}
                         />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </>
-          ))}
-        </div>
-      </div>
-      <div className="mt-3 flex gap-2">
-        <button className="px-3 py-2 rounded border" onClick={clearAll}>Clear all</button>
-        <button className="px-3 py-2 rounded bg-black text-white" onClick={()=> onSave(grid)}>Save weekly hours</button>
-      </div>
-    </div>
-  );
-}
+                     </div>
+                   );
+                 })}
+               </>
+             );
+           })}
+         </div>
+       </div>
+       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
+        <button
+          type="button"
+          className="btn-secondary px-5"
+          onClick={async () => {
+            const emptyGrid = Array.from({ length: 7 }, () => Array(SLOT_COUNT).fill(false));
+            setGrid(emptyGrid);
+            setSaving(true);
+            await onSave(emptyGrid);
+            setSaving(false);
+            setStatus("Cleared");
+            setTimeout(() => setStatus(null), 2000);
+          }}
+        >
+          Clear all
+        </button>
+         {status ? <span className="text-accent-teal">{status}</span> : null}
+         {saving && <span>Saving…</span>}
+       </div>
+     </div>
+   );
+ }
+
+ function formatRange(start: string, end: string) {
+   const fmt = (value: string) => value.slice(0, 5);
+   return `${fmt(start)} – ${fmt(end)}`;
+ }
