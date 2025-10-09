@@ -58,7 +58,7 @@ export default function LoginPage() {
           </div>
 
           {status === "loading" && (
-            <div className="mb-6 flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs uppercase tracking-[0.3em] text-slate-300">
+            <div className="mb-6 flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-semibold text-slate-200">
               <span className="h-2 w-2 animate-pulse rounded-full bg-accent-teal" />
               Checking session…
             </div>
@@ -70,7 +70,7 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={sendMagic} className="flex flex-col gap-4">
-            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Magic link</label>
+            <label className="text-xs font-semibold text-slate-400">Magic link</label>
             <input
               type="email"
               required
@@ -97,7 +97,7 @@ export default function LoginPage() {
 
           <div className="my-6 flex items-center gap-3 text-slate-400">
             <div className="h-px flex-1 bg-white/10" />
-            <span className="text-[10px] uppercase tracking-[0.35em]">or</span>
+            <span className="text-[10px] font-medium text-slate-300">or</span>
             <div className="h-px flex-1 bg-white/10" />
           </div>
 

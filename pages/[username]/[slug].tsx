@@ -50,12 +50,12 @@ export default function HostEventPage({ username, event }: PageProps) {
           style={{ background: `${accent}15`, borderColor: `${accent}33` }}
         >
           <div className="mx-auto max-w-3xl">
-            <p className="text-xs uppercase tracking-wide text-slate-500">CalendlAI event</p>
+            <p className="text-xs font-medium text-slate-500">CalendlAI event</p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900">{event.name}</h1>
             <div className="mt-2 text-sm text-slate-500">
               Hosted by <span className="font-medium text-slate-700">{event.owner_display_name}</span>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs uppercase tracking-wide text-slate-400">
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-400">
               <span>{event.duration_minutes} min</span>
               {event.scheduling_mode !== "solo" && (
                 <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] text-slate-500">

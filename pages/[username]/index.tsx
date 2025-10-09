@@ -72,7 +72,7 @@ export default function HostPage({ profile, eventTypes }: PageProps) {
                 />
               ) : (
                 <div
-                  className="flex h-full w-full items-center justify-center text-2xl font-semibold uppercase text-white"
+                  className="flex h-full w-full items-center justify-center text-2xl font-semibold text-white"
                   style={{ backgroundColor: accent }}
                 >
                   {(profile.display_name ?? profile.username).slice(0, 2).toUpperCase()}
@@ -80,7 +80,7 @@ export default function HostPage({ profile, eventTypes }: PageProps) {
               )}
             </div>
             <div className="space-y-2">
-              <p className="text-sm uppercase tracking-wide text-slate-500">CalendlAI host</p>
+              <p className="text-sm font-medium text-slate-500">CalendlAI host</p>
               <h1 className="text-3xl font-bold tracking-tight">
                 {profile.display_name ?? profile.username}
                 {profile.pronouns && (
@@ -127,7 +127,7 @@ export default function HostPage({ profile, eventTypes }: PageProps) {
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <h3 className="text-xl font-semibold text-slate-800">{et.name}</h3>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-400">
                             <span>{et.duration_minutes} min</span>
                             {et.scheduling_mode !== "solo" && (
                               <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] text-slate-500">
@@ -160,7 +160,7 @@ export default function HostPage({ profile, eventTypes }: PageProps) {
 
             <aside className="space-y-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Share</h3>
+                <h3 className="text-sm font-semibold text-slate-500">Share</h3>
                 <p className="mt-2 text-sm text-slate-600">
                   {process.env.NEXT_PUBLIC_APP_URL
                     ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/${profile.username}`

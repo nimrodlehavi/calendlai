@@ -27,7 +27,7 @@ export default function AuthGuard({ children, redirectTo = null }: Props) {
   if (status === "loading") {
     return (
       <div className="min-h-[40vh] grid place-items-center text-slate-300">
-        <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs uppercase tracking-[0.3em]">
+        <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-semibold text-slate-200">
           <span className="h-2 w-2 animate-pulse rounded-full bg-accent-teal" />
           Verifying session
         </div>
@@ -40,7 +40,7 @@ export default function AuthGuard({ children, redirectTo = null }: Props) {
       // Optional redirect mode (e.g., use <AuthGuard redirectTo="/login">)
       return (
         <div className="min-h-[40vh] grid place-items-center text-slate-300">
-          <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs uppercase tracking-[0.3em]">
+          <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-semibold text-slate-200">
             <span className="h-2 w-2 animate-pulse rounded-full bg-accent-teal" />
             Redirecting to sign in…
           </div>
@@ -62,7 +62,7 @@ export default function AuthGuard({ children, redirectTo = null }: Props) {
           <InlineMagicLinkForm />
           <div className="my-6 flex items-center gap-3 text-slate-500">
             <div className="h-px flex-1 bg-white/10" />
-            <span className="text-[10px] uppercase tracking-[0.3em]">or</span>
+            <span className="text-[10px] font-medium text-slate-400">or</span>
             <div className="h-px flex-1 bg-white/10" />
           </div>
           <AuthButtons />
@@ -106,7 +106,7 @@ function InlineMagicLinkForm() {
 
   return (
     <form onSubmit={submit} className="mt-6 flex flex-col gap-3 text-slate-200">
-      <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Email</label>
+      <label className="text-xs font-semibold text-slate-400">Email</label>
       <input
         type="email"
         required

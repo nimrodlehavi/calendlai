@@ -102,7 +102,7 @@ export default function AuthButtons() {
 
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs">
-      <span className="text-[11px] font-medium uppercase tracking-[0.25em] text-slate-300">
+      <span className="text-[11px] font-medium text-slate-300">
         Login with
       </span>
       <button

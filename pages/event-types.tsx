@@ -168,7 +168,7 @@ function Content() {
         <h2 className="mb-4 text-lg font-semibold text-slate-100">Create new event type</h2>
         <form onSubmit={create} className="grid grid-cols-1 gap-4 md:grid-cols-5 md:items-end">
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Name</label>
+            <label className="text-xs font-semibold text-slate-400">Name</label>
             <input
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-accent-teal/80 focus:bg-white/10"
               value={form.name}
@@ -177,7 +177,7 @@ function Content() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Duration (min)</label>
+            <label className="text-xs font-semibold text-slate-400">Duration (min)</label>
             <input
               type="number"
               min={5}
@@ -188,7 +188,7 @@ function Content() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Buffer before</label>
+            <label className="text-xs font-semibold text-slate-400">Buffer before</label>
             <input
               type="number"
               min={0}
@@ -198,7 +198,7 @@ function Content() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Buffer after</label>
+            <label className="text-xs font-semibold text-slate-400">Buffer after</label>
             <input
               type="number"
               min={0}
@@ -208,7 +208,7 @@ function Content() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Min notice</label>
+            <label className="text-xs font-semibold text-slate-400">Min notice</label>
             <input
               type="number"
               min={0}
@@ -614,29 +614,29 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
         <div className="mt-4 grid gap-4">
           <div className="grid items-end gap-3 md:grid-cols-5">
             <div>
-              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Name</label>
+              <label className="block text-xs font-semibold text-slate-400">Name</label>
               <input className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.name} onChange={e=> setLocal({ ...local, name: e.target.value })} />
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Duration (min)</label>
+              <label className="block text-xs font-semibold text-slate-400">Duration (min)</label>
               <input type="number" min={5} className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.duration_minutes} onChange={e=> setLocal({ ...local, duration_minutes: Number(e.target.value) })} />
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Buffer before</label>
+              <label className="block text-xs font-semibold text-slate-400">Buffer before</label>
               <input type="number" min={0} className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.buffer_before} onChange={e=> setLocal({ ...local, buffer_before: Number(e.target.value) })} />
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Buffer after</label>
+              <label className="block text-xs font-semibold text-slate-400">Buffer after</label>
               <input type="number" min={0} className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.buffer_after} onChange={e=> setLocal({ ...local, buffer_after: Number(e.target.value) })} />
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Min notice</label>
+              <label className="block text-xs font-semibold text-slate-400">Min notice</label>
               <input type="number" min={0} className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10" value={local.min_notice_minutes} onChange={e=> setLocal({ ...local, min_notice_minutes: Number(e.target.value) })} />
             </div>
           </div>
           <div className="grid items-end gap-3 md:grid-cols-5">
             <div className="md:col-span-3">
-              <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Public link slug</label>
+              <label className="block text-xs font-semibold text-slate-400">Public link slug</label>
               <input
                 className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
                 value={local.slug}
@@ -655,7 +655,7 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
             </div>
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Description (optional)</label>
+            <label className="block text-xs font-semibold text-slate-400">Description (optional)</label>
             <textarea
               className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
               rows={3}
@@ -664,7 +664,7 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
             />
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Scheduling mode</label>
+            <label className="block text-xs font-semibold text-slate-400">Scheduling mode</label>
             <select
               className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
               value={local.scheduling_mode}

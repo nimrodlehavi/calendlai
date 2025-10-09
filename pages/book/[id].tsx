@@ -229,7 +229,7 @@ export default function BookEvent({ eventTypeId, hostUsername, embedded = false,
   const formContent = (
     <div className={containerClass}>
         <header className="text-center space-y-2">
-          <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-slate-400">Book a meeting</p>
+          <p className="text-[11px] font-medium text-slate-400">Book a meeting</p>
           <h1 className="text-3xl font-semibold text-slate-50">{eventType ? eventType.name : 'Loading…'}</h1>
           <p className="text-sm text-slate-300">Pick a time, share context, and CalendlAI will keep everyone in sync.</p>
         </header>
