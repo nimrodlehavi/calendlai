@@ -5,6 +5,7 @@ import AuthGuard from "../components/AuthGuard";
 import { supabaseBrowserClient } from "../lib/supabaseBrowserClient";
 import Layout from "../components/Layout";
 import { useSupabaseSession } from "../hooks/useSupabaseSession";
+import { getAppOrigin } from "../lib/appOrigin";
 
 type EventType = {
   id: string;
@@ -260,9 +261,7 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
   const [shareSending, setShareSending] = useState(false);
   const [shareAvailability, setShareAvailability] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
   const [shareAvailabilityDate, setShareAvailabilityDate] = useState<string | null>(null);
-  const baseUrl = typeof window !== 'undefined'
-    ? window.location.origin
-    : process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || '';
+  const baseUrl = getAppOrigin();
   const sharePath = ownerUsername && local.slug
     ? `/${ownerUsername}/${local.slug}`
     : `/book/${item.id}`;

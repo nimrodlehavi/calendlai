@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import { useEffect, useState } from "react";
 import { supabaseBrowserClient } from "../lib/supabaseBrowserClient";
 import { Toast } from "../components/Toast";
+import { getAppOrigin } from "../lib/appOrigin";
 
 type ProfileForm = {
   username: string;
@@ -314,7 +315,7 @@ alter table public.oauth_states disable row level security;`}
               </div>
               <div className="rounded-2xl border border-dashed border-white/15 bg-white/8 px-3 py-2 text-xs text-slate-300">
                 Public page: {profile.username
-                  ? <span className="text-midnight-200">{`${typeof window !== "undefined" ? window.location.origin : ""}/${profile.username}`}</span>
+                  ? <span className="text-midnight-200">{`${getAppOrigin()}/${profile.username}`}</span>
                   : 'Set a username to generate your share link.'}
               </div>
 

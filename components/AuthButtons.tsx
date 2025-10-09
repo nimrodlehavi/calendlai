@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
-import { supabaseBrowserClient } from "../lib/supabaseBrowserClient";
 import { useState } from "react";
 import { useSupabaseSession } from "../hooks/useSupabaseSession";
+import { supabaseBrowserClient } from "../lib/supabaseBrowserClient";
+import { buildRedirectUrl } from "../lib/appOrigin";
 
 export default function AuthButtons() {
   const { status } = useSupabaseSession();
@@ -30,7 +31,7 @@ export default function AuthButtons() {
     try {
       setLoading(true);
       setError(null);
-      const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
+      const redirectTo = buildRedirectUrl("/");
       const { data, error } = await supabaseBrowserClient.auth.signInWithOAuth({
         provider: "google",
         options: {

@@ -4,6 +4,7 @@ import AuthButtons from "../components/AuthButtons";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSupabaseSession } from "../hooks/useSupabaseSession";
+import { buildRedirectUrl } from "../lib/appOrigin";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,11 +25,10 @@ export default function LoginPage() {
     setBusy(true);
     setErr(null);
     try {
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const r = await fetch('/api/auth/send-magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, redirectTo: origin ? `${origin}/` : undefined }),
+        body: JSON.stringify({ email, redirectTo: buildRedirectUrl('/') }),
       });
       const j = await r.json().catch(() => ({}));
       setBusy(false);
