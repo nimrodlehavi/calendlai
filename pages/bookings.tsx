@@ -117,8 +117,8 @@ function Content() {
             <h1 className="text-2xl font-semibold text-slate-50">Bookings</h1>
             <p className="text-sm text-slate-300">Monitor meetings, reschedule with AI assistance, and keep calendars in sync.</p>
           </div>
-          <div className="text-xs font-medium uppercase tracking-[0.3em] text-slate-400">
-            {bookings.length} active
+          <div className="text-xs font-medium text-slate-400">
+            {bookings.length} active booking{bookings.length === 1 ? '' : 's'}
           </div>
         </header>
 

@@ -131,8 +131,8 @@ function Content() {
             <h1 className="text-2xl font-semibold text-slate-50">Event types</h1>
             <p className="text-sm text-slate-300">Craft curated booking flows for every moment.</p>
           </div>
-          <span className="rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs uppercase tracking-[0.3em] text-slate-300">
-            {items.length} total
+          <span className="text-xs font-medium text-slate-300">
+            {items.length} event type{items.length === 1 ? '' : 's'}
           </span>
         </header>
 
