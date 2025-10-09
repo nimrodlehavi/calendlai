@@ -177,44 +177,24 @@ export default function AvailabilityPage() {
            </section>
 
            <section className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-6">
-             <header>
-               <h2 className="text-lg font-semibold text-slate-100">Daily presets</h2>
-               <p className="text-xs text-slate-400">Fine-tune recurring windows or add quick slots per weekday.</p>
-             </header>
-             <AddWindowForm onAdd={handleAddWindow} busy={addingWindow} />
-             <div className="space-y-4">
-               {DAY_OPTIONS.map(({ value, label }) => {
-                 const dayWindows = windowsByDay[value];
-                 return (
-                   <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
-                     <div className="flex items-center justify-between">
-                       <p className="font-semibold text-slate-100">{label}</p>
-                       <span className="text-xs text-slate-400">{dayWindows.length} slot{dayWindows.length === 1 ? "" : "s"}</span>
-                     </div>
-                     {dayWindows.length === 0 ? (
-                       <p className="mt-2 text-xs text-slate-500">No recurring windows for this day.</p>
-                     ) : (
-                       <ul className="mt-3 space-y-2">
-                         {dayWindows.map((win) => (
-                           <li key={win.id} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                             <span className="text-xs font-medium text-slate-100">
-                               {formatRange(win.start_time, win.end_time)}
-                             </span>
-                             <button
-                               onClick={() => deleteWindow(win.id)}
-                               className="text-xs font-semibold text-rose-300 hover:text-rose-200"
-                             >
-                               Remove
-                             </button>
-                           </li>
-                         ))}
-                       </ul>
-                     )}
-                   </div>
-                 );
-               })}
-             </div>
-           </section>
+          <header>
+            <h2 className="text-lg font-semibold text-slate-100">Daily presets</h2>
+            <p className="text-xs text-slate-400">Drop in a quick window for any weekday without leaving this view.</p>
+          </header>
+          <div className="grid gap-4 md:grid-cols-2">
+            {DAY_OPTIONS.map(({ value, label }) => (
+              <DayPresetCard
+                key={value}
+                day={value}
+                label={label}
+                windows={windowsByDay[value]}
+                busy={addingWindow}
+                onAdd={handleAddWindow}
+                onDelete={deleteWindow}
+              />
+            ))}
+          </div>
+        </section>
          </div>
 
          <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
@@ -256,57 +236,88 @@ export default function AvailabilityPage() {
    );
  }
 
- function AddWindowForm({ onAdd, busy }: { onAdd: (day: number, start: string, end: string) => void; busy: boolean }) {
-   const [day, setDay] = useState<number>(1);
-   const [start, setStart] = useState("09:00");
-   const [end, setEnd] = useState("17:00");
+function DayPresetCard({
+  day,
+  label,
+  windows,
+  busy,
+  onAdd,
+  onDelete,
+}: {
+  day: number;
+  label: string;
+  windows: Window[];
+  busy: boolean;
+  onAdd: (day: number, start: string, end: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [start, setStart] = useState("09:00");
+  const [end, setEnd] = useState("17:00");
 
-   return (
-     <form
-       onSubmit={(e) => {
-         e.preventDefault();
-         onAdd(day, `${start}:00`, `${end}:00`);
-       }}
-       className="grid gap-3 text-sm text-slate-200 md:grid-cols-[1fr_1fr_1fr_auto]"
-     >
-       <label className="space-y-1">
-         <span className="text-xs text-slate-400">Day</span>
-         <select
-           value={day}
-           onChange={(e) => setDay(Number(e.target.value))}
-           className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
-         >
-           {DAY_OPTIONS.map((opt) => (
-             <option key={opt.value} value={opt.value}>
-               {opt.label}
-             </option>
-           ))}
-         </select>
-       </label>
-       <label className="space-y-1">
-         <span className="text-xs text-slate-400">Start</span>
-         <input
-           type="time"
-           value={start}
-           onChange={(e) => setStart(e.target.value)}
-           className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
-         />
-       </label>
-       <label className="space-y-1">
-         <span className="text-xs text-slate-400">End</span>
-         <input
-           type="time"
-           value={end}
-           onChange={(e) => setEnd(e.target.value)}
-           className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
-         />
-       </label>
-       <button type="submit" disabled={busy} className="btn-primary h-full px-5">
-         {busy ? "Adding…" : "Add"}
-       </button>
-     </form>
-   );
- }
+  const disable = busy || !start || !end || start >= end;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (disable) return;
+          onAdd(day, `${start}:00`, `${end}:00`);
+        }}
+        className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <p className="text-base font-semibold text-slate-100">{label}</p>
+          <span className="text-xs text-slate-400">{windows.length} slot{windows.length === 1 ? "" : "s"}</span>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col text-xs text-slate-400">
+            Start
+            <input
+              type="time"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              className="mt-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
+            />
+          </label>
+          <label className="flex flex-col text-xs text-slate-400">
+            End
+            <input
+              type="time"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              className="mt-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
+            />
+          </label>
+          <button type="submit" className="btn-secondary px-4 py-2 text-xs" disabled={disable}>
+            {busy ? "Adding…" : "Add window"}
+          </button>
+        </div>
+      </form>
+
+      {windows.length === 0 ? (
+        <p className="mt-3 text-xs text-slate-500">No recurring windows for this day.</p>
+      ) : (
+        <ul className="mt-4 space-y-2">
+          {windows.map((win) => (
+            <li
+              key={win.id}
+              className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+            >
+              <span className="text-xs font-medium text-slate-100">{formatRange(win.start_time, win.end_time)}</span>
+              <button
+                onClick={() => onDelete(win.id)}
+                className="text-xs font-semibold text-rose-300 hover:text-rose-200"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
  function AddBlockForm({ onAdd, busy }: { onAdd: (start: string, end: string) => void; busy: boolean }) {
    const [start, setStart] = useState("");
