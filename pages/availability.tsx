@@ -355,30 +355,45 @@ export default function AvailabilityPage() {
    windows: Window[];
    onSave: (daySlots: boolean[][]) => Promise<void> | void;
  }) {
-   const SLOT_COUNT = 48; // 30-min slots
-   const toIdx = (t: string) => {
-     const [hh, mm] = t.split(":").map(Number);
-     return hh * 2 + (mm >= 30 ? 1 : 0);
-   };
+  const SLOT_COUNT = 48; // 30-min slots
+  const toIdx = (t: string) => {
+    const [hh, mm] = t.split(":").map(Number);
+    return hh * 2 + (mm >= 30 ? 1 : 0);
+  };
 
-   const buildGridFromWindows = () => {
-     const grid: boolean[][] = Array.from({ length: 7 }, () => Array(SLOT_COUNT).fill(false));
-     for (const win of windows) {
-       const day = win.day_of_week;
-       let start = toIdx(win.start_time.slice(0, 5));
-       let end = toIdx(win.end_time.slice(0, 5));
-       start = Math.max(0, Math.min(SLOT_COUNT, start));
-       end = Math.max(0, Math.min(SLOT_COUNT, end));
-       for (let i = start; i < end; i++) grid[day][i] = true;
-     }
-     return grid;
-   };
+  const buildGridFromWindows = () => {
+    const grid: boolean[][] = Array.from({ length: 7 }, () => Array(SLOT_COUNT).fill(false));
+    for (const win of windows) {
+      const day = win.day_of_week;
+      let start = toIdx(win.start_time.slice(0, 5));
+      let end = toIdx(win.end_time.slice(0, 5));
+      start = Math.max(0, Math.min(SLOT_COUNT, start));
+      end = Math.max(0, Math.min(SLOT_COUNT, end));
+      for (let i = start; i < end; i++) grid[day][i] = true;
+    }
+    return grid;
+  };
 
-   const [grid, setGrid] = useState<boolean[][]>(buildGridFromWindows);
-   const [isDragging, setIsDragging] = useState(false);
-   const [dragState, setDragState] = useState<"on" | "off" | null>(null);
-   const [saving, setSaving] = useState(false);
-   const [status, setStatus] = useState<string | null>(null);
+  const [grid, setGrid] = useState<boolean[][]>(buildGridFromWindows);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragState, setDragState] = useState<"on" | "off" | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const visibleRows = useMemo(() => {
+    const indices = new Set<number>();
+    grid.forEach((daySlots) => {
+      daySlots.forEach((value, idx) => {
+        if (value) indices.add(idx);
+      });
+    });
+    if (indices.size === 0) {
+      return Array.from({ length: SLOT_COUNT }, (_, i) => i);
+    }
+    const sorted = Array.from(indices).sort((a, b) => a - b);
+    const start = Math.max(0, sorted[0] - 2);
+    const end = Math.min(SLOT_COUNT, sorted[sorted.length - 1] + 3);
+    return Array.from({ length: end - start }, (_, i) => start + i);
+  }, [grid]);
 
   useEffect(() => {
     setGrid(buildGridFromWindows());
@@ -425,25 +440,25 @@ export default function AvailabilityPage() {
     return () => window.removeEventListener("mouseup", up);
   }, [handleMouseUp]);
 
-   return (
-     <div className="space-y-4">
-       <div className="overflow-hidden rounded-2xl border border-white/10">
-         <div className="grid grid-cols-[80px_repeat(7,_minmax(0,_1fr))] text-xs text-slate-300">
-           <div className="bg-white/3 px-3 py-2">Time</div>
-           {DOW.map((day) => (
-             <div key={day} className="bg-white/3 px-3 py-2 text-center font-medium">
-               {day}
-             </div>
-           ))}
-         </div>
-         <div className="grid grid-cols-[80px_repeat(7,_minmax(0,_1fr))] text-[11px]">
-           {Array.from({ length: SLOT_COUNT }).map((_, row) => {
-             const hour = Math.floor(row / 2);
-             const label = `${String(hour).padStart(2, "0")}:${row % 2 ? "30" : "00"}`;
-             return (
-               <>
-                 <div key={`label-${row}`} className="border-t border-white/5 bg-white/3 px-2 py-1 text-right text-slate-400">
-                   {row % 2 === 0 ? label : ""}
+  return (
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-2xl border border-white/10">
+        <div className="grid grid-cols-[80px_repeat(7,_minmax(0,_1fr))] text-xs text-slate-300">
+          <div className="bg-white/3 px-3 py-2">Time</div>
+          {DOW.map((day) => (
+            <div key={day} className="bg-white/3 px-3 py-2 text-center font-medium">
+              {day}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-[80px_repeat(7,_minmax(0,_1fr))] text-[11px]">
+          {visibleRows.map((row) => {
+            const hour = Math.floor(row / 2);
+            const label = `${String(hour).padStart(2, "0")}:${row % 2 ? "30" : "00"}`;
+            return (
+              <>
+                <div key={`label-${row}`} className="border-t border-white/5 bg-white/3 px-2 py-1 text-right text-slate-400">
+                  {row % 2 === 0 ? label : ""}
                  </div>
                  {Array.from({ length: 7 }).map((_, day) => {
                    const active = grid[day][row];
