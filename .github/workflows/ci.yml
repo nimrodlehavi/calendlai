@@ -9,6 +9,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: supabase-anon-key-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: supabase-service-key-placeholder
+      NEXT_PUBLIC_SITE_URL: https://calendlai.vercel.app
+      RESEND_API_KEY: resend-placeholder
+      GOOGLE_CLIENT_ID: google-client-id-placeholder
+      GOOGLE_CLIENT_SECRET: google-client-secret-placeholder
+      INVITE_LINK_SECRET: invite-link-secret-placeholder
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
