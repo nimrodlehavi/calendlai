@@ -257,57 +257,55 @@ function DayPresetCard({
   const disable = busy || !start || !end || start >= end;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-slate-200">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           if (disable) return;
           onAdd(day, `${start}:00`, `${end}:00`);
         }}
-        className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
+        className="flex flex-wrap items-end gap-2"
       >
-        <div className="flex items-center gap-3">
-          <p className="text-base font-semibold text-slate-100">{label}</p>
-          <span className="text-xs text-slate-400">{windows.length} slot{windows.length === 1 ? "" : "s"}</span>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-slate-100">{label}</p>
+          <span className="text-[11px] text-slate-400">{windows.length} slot{windows.length === 1 ? "" : "s"}</span>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col text-xs text-slate-400">
-            Start
-            <input
-              type="time"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              className="mt-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
-            />
-          </label>
-          <label className="flex flex-col text-xs text-slate-400">
-            End
-            <input
-              type="time"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              className="mt-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-slate-100 outline-none transition focus:border-accent-teal/70"
-            />
-          </label>
-          <button type="submit" className="btn-secondary px-4 py-2 text-xs" disabled={disable}>
-            {busy ? "Adding…" : "Add window"}
-          </button>
-        </div>
+        <label className="flex flex-col text-[11px] text-slate-400">
+          Start
+          <input
+            type="time"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            className="mt-1 w-28 rounded-xl border border-white/10 bg-white/5 px-2 py-1 text-slate-100 outline-none transition focus:border-accent-teal/70"
+          />
+        </label>
+        <label className="flex flex-col text-[11px] text-slate-400">
+          End
+          <input
+            type="time"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            className="mt-1 w-28 rounded-xl border border-white/10 bg-white/5 px-2 py-1 text-slate-100 outline-none transition focus:border-accent-teal/70"
+          />
+        </label>
+        <button type="submit" className="btn-secondary px-3 py-1 text-[11px]" disabled={disable}>
+          {busy ? "Adding…" : "Add"}
+        </button>
       </form>
 
       {windows.length === 0 ? (
-        <p className="mt-3 text-xs text-slate-500">No recurring windows for this day.</p>
+        <p className="mt-2 text-[11px] text-slate-500">No recurring windows for this day.</p>
       ) : (
-        <ul className="mt-4 space-y-2">
+        <ul className="mt-3 space-y-2">
           {windows.map((win) => (
             <li
               key={win.id}
-              className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+              className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-1.5"
             >
-              <span className="text-xs font-medium text-slate-100">{formatRange(win.start_time, win.end_time)}</span>
+              <span className="text-[11px] font-medium text-slate-100">{formatRange(win.start_time, win.end_time)}</span>
               <button
                 onClick={() => onDelete(win.id)}
-                className="text-xs font-semibold text-rose-300 hover:text-rose-200"
+                className="text-[11px] font-semibold text-rose-300 hover:text-rose-200"
               >
                 Remove
               </button>
