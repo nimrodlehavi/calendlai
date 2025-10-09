@@ -258,6 +258,8 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [shareInviteUrl, setShareInviteUrl] = useState<string | null>(null);
   const [shareSending, setShareSending] = useState(false);
+  const [shareAvailability, setShareAvailability] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
+  const [shareAvailabilityDate, setShareAvailabilityDate] = useState<string | null>(null);
   const baseUrl = typeof window !== 'undefined'
     ? window.location.origin
     : process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || '';
@@ -272,8 +274,40 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
       setShareStatus(null);
       setShareSending(false);
       setShareInviteUrl(null);
+      setShareAvailability(prev => (prev === 'available' ? prev : 'idle'));
+      setShareAvailabilityDate(null);
     }
   }, [shareOpen]);
+
+  async function ensureShareAvailability() {
+    if (shareAvailability === 'available') {
+      return true;
+    }
+    if (!item.id) return false;
+    try {
+      setShareAvailability('checking');
+      setShareStatus(null);
+      const res = await fetch(`/api/event-types/availability-check?event_type_id=${encodeURIComponent(item.id)}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || 'Unable to verify availability');
+      }
+      if (json.available) {
+        setShareAvailability('available');
+        setShareAvailabilityDate(json.next_available_date || null);
+        return true;
+      }
+      setShareAvailability('unavailable');
+      setShareAvailabilityDate(null);
+      setShareStatus('No upcoming availability. Update your availability to share this event.');
+      return false;
+    } catch (err: any) {
+      setShareAvailability('unavailable');
+      setShareAvailabilityDate(null);
+      setShareStatus(err.message || String(err));
+      return false;
+    }
+  }
 
   async function save(){
     setSaving(true);
@@ -437,12 +471,18 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
 
   async function copyShareLink() {
     try {
+      const ok = await ensureShareAvailability();
+      if (!ok) {
+        setShareOpen(true);
+        return;
+      }
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
         setShareStatus('Link copied to clipboard');
       } else {
         setShareStatus('Copy not supported');
       }
+      setShareOpen(true);
     } catch {
       setShareStatus('Copy failed');
     }
@@ -458,13 +498,24 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
         <div className="flex flex-wrap gap-2">
           <button
             className={`${shareOpen ? 'btn-primary' : 'btn-secondary'} px-4 py-2 text-xs`}
-            onClick={() => {
-              const next = !shareOpen;
-              setShareOpen(next);
-              if (next) setExpanded(false);
+            onClick={async () => {
+              if (!shareOpen) {
+                const ok = await ensureShareAvailability();
+                setShareOpen(true);
+                setExpanded(false);
+                if (!ok) return;
+              } else {
+                setShareOpen(false);
+              }
             }}
           >
             {shareOpen ? 'Sharing' : 'Share'}
+          </button>
+          <button
+            className="btn-secondary px-4 py-2 text-xs"
+            onClick={copyShareLink}
+          >
+            Copy link
           </button>
           <button
             onClick={() => {
@@ -486,42 +537,67 @@ function EventTypeRow({ item, ownerUsername, onDeleted, onUpdated }: { item: any
       {shareOpen && (
         <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="text-sm font-medium text-slate-100">Share {local.name}</div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
-              value={shareUrl}
-              readOnly
-              onFocus={(e) => e.currentTarget.select()}
-            />
-            <button
-              type="button"
-              className="btn-secondary px-4 py-2 text-xs"
-              onClick={copyShareLink}
-            >
-              Copy link
-            </button>
-          </div>
-          <form onSubmit={sendShareInvite} className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-            <div>
-              <label className="text-xs text-slate-400">Email the link</label>
-              <input
-                type="email"
-                value={shareEmail}
-                onChange={(e) => setShareEmail(e.target.value)}
-                placeholder="invitee@example.com"
-                className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
-                required
-              />
+          {shareAvailability === 'checking' && (
+            <div className="text-xs text-slate-300">Checking your availability…</div>
+          )}
+          {shareAvailability === 'available' && shareAvailabilityDate && (
+            <div className="rounded-2xl border border-accent-teal/30 bg-accent-teal/12 px-4 py-3 text-xs text-accent-teal">
+              Next available slot: {new Date(shareAvailabilityDate).toLocaleDateString()}
             </div>
-            <button
-              type="submit"
-              className="btn-primary mt-3 px-4 py-2 text-xs font-semibold sm:mt-5"
-              disabled={shareSending}
-            >
-              {shareSending ? 'Sending…' : 'Send invite'}
-            </button>
-          </form>
-          {(shareStatus || shareInviteUrl) && (
+          )}
+          {shareAvailability === 'unavailable' ? (
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+                {shareStatus || 'No upcoming availability found. Add hours before sharing.'}
+              </div>
+              <button
+                type="button"
+                className="btn-secondary px-4 py-2 text-xs"
+                onClick={() => router.push('/availability')}
+              >
+                Go to availability
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
+                  value={shareUrl}
+                  readOnly
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary px-4 py-2 text-xs"
+                  onClick={copyShareLink}
+                >
+                  Copy link
+                </button>
+              </div>
+              <form onSubmit={sendShareInvite} className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                <div>
+                  <label className="text-xs text-slate-400">Email the link</label>
+                  <input
+                    type="email"
+                    value={shareEmail}
+                    onChange={(e) => setShareEmail(e.target.value)}
+                    placeholder="invitee@example.com"
+                    className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-midnight-300/70 focus:bg-white/10"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="btn-primary mt-3 px-4 py-2 text-xs font-semibold sm:mt-5"
+                  disabled={shareSending}
+                >
+                  {shareSending ? 'Sending…' : 'Send invite'}
+                </button>
+              </form>
+            </>
+          )}
+          {(shareStatus || shareInviteUrl) && shareAvailability !== 'unavailable' && (
             <div className="break-words text-xs text-slate-200/80">
               {shareStatus}
               {shareInviteUrl && (

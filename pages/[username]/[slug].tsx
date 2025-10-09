@@ -74,8 +74,17 @@ export default function HostEventPage({ username, event }: PageProps) {
           </div>
         </section>
         <section className="px-6 py-12 sm:px-10">
-          <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <BookEvent eventTypeId={event.event_type_id} hostUsername={username} />
+          <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+            <BookEvent
+              eventTypeId={event.event_type_id}
+              hostUsername={username}
+              embedded
+              initialEventType={{
+                name: event.name,
+                duration_minutes: event.duration_minutes,
+                description: event.description,
+              }}
+            />
           </div>
         </section>
       </main>

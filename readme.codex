@@ -24,10 +24,8 @@ Important Modules
 
 Outstanding / Next Tasks
 ------------------------
-1. Build invitee booking flow for `/{username}/{slug}` (slot picker, confirmation, ICS emails, availability checks).
-2. Provide quick share / copy link actions in Event Types with slug uniqueness + availability preflight.
-3. Add automated coverage (e.g., Vitest/MSW or Playwright) for auth and booking flows.
-4. (Optional soon) Reconcile existing pages under `pages/book/`, `pages/manage/`, `pages/availability.tsx`, `pages/settings.tsx` with new session hook + error states.
+1. Add automated coverage (e.g., Vitest/MSW or Playwright) for auth, booking, and sharing flows.
+2. (Optional soon) Reconcile existing pages under `pages/book/`, `pages/manage/`, `pages/availability.tsx`, `pages/settings.tsx` with new session hook + error states.
 
 Operational Notes
 -----------------
@@ -38,6 +36,5 @@ Operational Notes
 Last Session Summary
 --------------------
 - Date: 2025-02-26
-- Focus: Hardened Supabase client configuration, introduced shared session handling, refreshed auth UX, and added loading/error states to protected pages.
+- Focus: Hardened Supabase client configuration, introduced shared session handling, refreshed auth UX, added loading/error states to protected pages, delivered public invitee booking flow, and gated sharing against availability with quick copy actions.
 - Dev server restarted (`npm run dev`) and type check passed (`npx tsc --noEmit`).
-

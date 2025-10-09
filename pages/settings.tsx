@@ -160,19 +160,27 @@ export default function Settings() {
 
   return (
     <Layout>
-      <div className="max-w-xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-4">Settings</h1>
+      <div className="mx-auto max-w-3xl space-y-6">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-50">Settings</h1>
+            <p className="text-sm text-slate-300">Personalize your profile, refine automation, and manage integrations.</p>
+          </div>
+          <span className="rounded-full border border-white/5 bg-transparent px-4 py-1 text-xs font-medium text-slate-300">
+            Control center
+          </span>
+        </header>
         {serviceRole === false && (
-          <div className="mb-4 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900">
+          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-xs text-amber-200">
             Warning: Server role key not configured. Calendar inserts and host notifications are disabled.
           </div>
         )}
         {serviceRole && migration && (migration.oauth_states === false || migration.calendars === false) && (
-          <div className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+          <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-4 text-xs text-rose-200">
             Google connection tables missing in Supabase.
-            <details className="mt-2">
-              <summary className="cursor-pointer">Show SQL to create</summary>
-              <pre className="mt-2 whitespace-pre-wrap text-xs">
+            <details className="mt-2 space-y-2">
+              <summary className="cursor-pointer text-slate-200">Show SQL to create</summary>
+              <pre className="whitespace-pre-wrap rounded-xl border border-white/10 bg-white/5 p-4 text-[11px] leading-relaxed text-slate-200/80">
 {`-- calendars
 create table if not exists public.calendars (
   id uuid primary key default gen_random_uuid(),
@@ -206,12 +214,14 @@ alter table public.oauth_states disable row level security;`}
         )}
         {email ? (
           <>
-            <p>Signed in as {email}</p>
-            <form onSubmit={saveProfile} className="mt-4 space-y-3 max-w-md">
+            <p className="text-sm font-medium text-slate-200">
+              Signed in as <span className="text-midnight-200">{email}</span>
+            </p>
+            <form onSubmit={saveProfile} className="mt-4 space-y-5">
               <div className="grid gap-2">
-                <label className="block text-sm font-medium">Username</label>
+                <label className="text-sm font-medium text-slate-200">Username</label>
                 <input
-                  className="border rounded px-3 py-2 w-full"
+                  className="input-field"
                   value={profile.username}
                   onChange={(e) => setProfile((prev) => ({ ...prev, username: e.target.value }))}
                   placeholder="your-handle"
@@ -221,9 +231,9 @@ alter table public.oauth_states disable row level security;`}
                 )}
               </div>
               <div className="grid gap-2">
-                <label className="block text-sm font-medium">Display name</label>
+                <label className="text-sm font-medium text-slate-200">Display name</label>
                 <input
-                  className="border rounded px-3 py-2 w-full"
+                  className="input-field"
                   value={profile.display_name}
                   onChange={(e) => setProfile((prev) => ({ ...prev, display_name: e.target.value }))}
                   placeholder="Your Name"
@@ -231,10 +241,10 @@ alter table public.oauth_states disable row level security;`}
               </div>
             <div className="grid gap-2">
               <div>
-                <label className="block text-sm font-medium">Accent color</label>
+                <label className="text-sm font-medium text-slate-200">Accent color</label>
                 <input
                   type="color"
-                  className="h-10 w-full rounded border px-2"
+                  className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-white/5 p-2"
                   value={profile.accent_color || "#2563eb"}
                   onChange={(e) => setProfile((prev) => ({ ...prev, accent_color: e.target.value }))}
                 />
@@ -248,23 +258,23 @@ alter table public.oauth_states disable row level security;`}
                 onChange={(e) => setProfile((prev) => ({ ...prev, include_all_day_blocks: e.target.checked }))}
                 className="h-4 w-4"
               />
-              <label htmlFor="include-all-day" className="text-sm text-gray-700">
+              <label htmlFor="include-all-day" className="text-sm text-slate-200">
                 Block all-day Google Calendar events
               </label>
             </div>
               <div>
-                <label className="block text-sm font-medium">Headline</label>
+                <label className="block text-sm font-medium text-slate-200">Headline</label>
                 <input
-                  className="border rounded px-3 py-2 w-full"
+                  className="input-field"
                   value={profile.headline}
                   onChange={(e) => setProfile((prev) => ({ ...prev, headline: e.target.value }))}
                   placeholder="Founder · Product Lead"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Short bio</label>
+                <label className="block text-sm font-medium text-slate-200">Short bio</label>
                 <textarea
-                  className="border rounded px-3 py-2 w-full min-h-[110px]"
+                  className="textarea-field min-h-[110px]"
                   value={profile.bio}
                   onChange={(e) => setProfile((prev) => ({ ...prev, bio: e.target.value }))}
                   placeholder="Tell invitees what to expect."
@@ -272,21 +282,21 @@ alter table public.oauth_states disable row level security;`}
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium">Location</label>
+                  <label className="block text-sm font-medium text-slate-200">Location</label>
                   <input
-                    className="border rounded px-3 py-2 w-full"
+                    className="input-field"
                     value={profile.location}
                     onChange={(e) => setProfile((prev) => ({ ...prev, location: e.target.value }))}
                     placeholder="Berlin, Remote"
                   />
                   {!profile.location && suggestingLocation && (
-                    <div className="pt-1 text-xs text-gray-500">Detecting from IP…</div>
+                    <div className="pt-1 text-xs text-slate-300">Detecting from IP…</div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium">Website</label>
+                  <label className="block text-sm font-medium text-slate-200">Website</label>
                   <input
-                    className="border rounded px-3 py-2 w-full"
+                    className="input-field"
                     value={profile.website_url}
                     onChange={(e) => setProfile((prev) => ({ ...prev, website_url: e.target.value }))}
                     placeholder="https://example.com"
@@ -294,38 +304,37 @@ alter table public.oauth_states disable row level security;`}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium">Avatar image URL</label>
+                <label className="block text-sm font-medium text-slate-200">Avatar image URL</label>
                 <input
-                  className="border rounded px-3 py-2 w-full"
+                  className="input-field"
                   value={profile.avatar_url}
                   onChange={(e) => setProfile((prev) => ({ ...prev, avatar_url: e.target.value }))}
                   placeholder="https://…"
                 />
               </div>
-              <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                Public page:{" "}
-                {profile.username
-                  ? `${typeof window !== "undefined" ? window.location.origin : ""}/${profile.username}`
-                  : "Set a username to generate your share link."}
+              <div className="rounded-2xl border border-dashed border-white/15 bg-white/8 px-3 py-2 text-xs text-slate-300">
+                Public page: {profile.username
+                  ? <span className="text-midnight-200">{`${typeof window !== "undefined" ? window.location.origin : ""}/${profile.username}`}</span>
+                  : 'Set a username to generate your share link.'}
               </div>
 
-              <button className="bg-black text-white px-3 py-2 rounded" disabled={saving}>{saving? 'Saving…':'Save profile'}</button>
+              <button className="btn-primary px-6 py-3" disabled={saving}>{saving? 'Saving…':'Save profile'}</button>
             </form>
             <div className="mt-6 space-y-3">
               <button
                 onClick={() => supabaseBrowserClient.auth.signOut()}
-                className="rounded bg-gray-700 px-3 py-2 text-sm font-medium text-white"
+                className="btn-secondary px-5 py-2 text-sm"
               >
                 Sign out
               </button>
 
               {googleConnected ? (
                 <div className="space-y-3">
-                  <div className="rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                  <div className="rounded-2xl border border-accent-teal/35 bg-accent-teal/12 px-4 py-3 text-sm text-accent-teal">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <span className="font-medium">Google Calendar connected</span>
                       {tokenInfo && (
-                        <span className="text-xs text-green-700">
+                        <span className="text-xs text-accent-teal/90">
                           {tokenInfo.expires_at
                             ? `Access expires ${new Date(tokenInfo.expires_at).toLocaleString()}`
                             : 'Access token active'}
@@ -334,7 +343,7 @@ alter table public.oauth_states disable row level security;`}
                       )}
                     </div>
                     {needsReconnect && (
-                      <div className="text-xs text-yellow-700">We recommend re-authorizing to keep syncing.</div>
+                      <div className="text-xs text-amber-200/90">We recommend re-authorizing to keep syncing.</div>
                     )}
                   </div>
 
@@ -359,7 +368,7 @@ alter table public.oauth_states disable row level security;`}
                           setGoogleBusy(null);
                         }
                       }}
-                      className="rounded border border-gray-300 bg-white px-3 py-2 text-sm"
+                      className="btn-secondary px-4 py-2 text-xs"
                       disabled={googleBusy !== null}
                     >
                       {googleBusy === 'refresh' ? 'Refreshing…' : 'Refresh access token'}
@@ -392,7 +401,7 @@ alter table public.oauth_states disable row level security;`}
                             setToast({ msg: String(err.message || err), type: 'error' });
                           }
                         }}
-                        className="rounded border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-700"
+                        className="btn-primary px-4 py-2 text-xs"
                         disabled={googleBusy !== null}
                       >
                         {googleBusy === 'reconnect' ? 'Opening Google…' : 'Re-authorize Google'}
@@ -419,7 +428,7 @@ alter table public.oauth_states disable row level security;`}
                           setGoogleBusy(null);
                         }
                       }}
-                      className="rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
+                      className="btn-danger px-4 py-2 text-xs"
                       disabled={googleBusy !== null}
                     >
                       {googleBusy === 'disconnect' ? 'Disconnecting…' : 'Disconnect'}
@@ -445,7 +454,7 @@ alter table public.oauth_states disable row level security;`}
                       setToast({ msg: String(err.message || err), type: 'error' });
                     }
                   }}
-                  className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white"
+                  className="btn-primary px-5 py-2 text-sm"
                   disabled={googleBusy !== null}
                 >
                   {googleBusy === 'connect' ? 'Opening Google…' : 'Connect Google Calendar'}
@@ -454,7 +463,7 @@ alter table public.oauth_states disable row level security;`}
             </div>
           </>
         ) : (
-          <div className="text-sm text-gray-700">Please sign in to manage settings.</div>
+          <div className="text-sm text-slate-200">Please sign in to manage settings.</div>
         )}
         {toast && <Toast message={toast.msg} type={toast.type} />}
       </div>
@@ -476,7 +485,7 @@ function UsernameHint({ username, original }: { username: string; original: stri
     }, 300)
     return ()=> { active = false; clearTimeout(t) }
   }, [username, original])
-  if (available === null) return <div className="text-xs text-gray-500 mt-1">Checking availability…</div>
+  if (available === null) return <div className="mt-1 text-xs text-slate-400">Checking availability…</div>
   return available
     ? <div className="text-xs text-green-600 mt-1">Available</div>
     : <div className="text-xs text-red-600 mt-1">Not available</div>
